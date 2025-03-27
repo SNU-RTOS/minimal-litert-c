@@ -1,7 +1,7 @@
 # Makefile
 
 # 디렉토리 설정
-ROOT_DIR := /root
+
 SRC_DIR := src
 OBJ_DIR := obj
 TARGET := output/test
@@ -21,7 +21,7 @@ INCS := -I/root/ghpark/LiteRT_LLM_inference_app/external/tensorflow/ \
 		-I/usr/include \
         -I/usr/include/opencv4 \
         -I/usr/include/opencv2
-# INCS := -I$(ROOT_DIR)/inc -I/root/tensorflow/tensorflow/core -I/root/tensorflow/tensorflow/lite
+
 LIBS := -L/usr/lib -L /root/ghpark/LiteRT_LLM_inference_app/external/tensorflow/bazel-bin/tensorflow/lite/delegates/gpu 
 
 SRCS := test.cpp
