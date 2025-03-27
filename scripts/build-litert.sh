@@ -16,7 +16,8 @@ pwd
 # Release mode
 bazel build -c opt //tensorflow/lite:tensorflowlite \
     --copt=-Os \
-    --copt=-fPIC 
+    --copt=-fPIC \
+    --linkopt=-s
 
 # Debug mode
 # bazel build -c dbg //tensorflow/lite:tensorflowlite \

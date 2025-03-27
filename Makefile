@@ -4,7 +4,8 @@
 ROOT_DIR := $(shell pwd)
 SRC_DIR := src
 OBJ_DIR := obj
-TARGET := sample_gpu
+TARGET := cv_cpu
+TARGET_PATH := output/$(TARGET)
 
 # Compiler settings
 CXX := g++
@@ -13,14 +14,13 @@ CXXFLAGS := -std=c++17
 # Linker flags (OpenGL, GLES, TFLite, OpenCV, etc.)
 LDFLAGS := -Wl,--rpath=lib \
 	-lpthread \
-	-ltensorflowlite  
-	# -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs 
+	-ltensorflowlite  \
+	-lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs 
 
 # Include paths
 INCS := -Iinc \
 		-I/usr/include \
-        -I/usr/include/opencv4 \
-        -I/usr/include/opencv2
+        -I/usr/include/opencv4
 
 # Library paths
 LIBS := -L/lib \
@@ -35,7 +35,7 @@ DEPS = $(OBJECTS:.o=.d)
 .PHONY: all clean
 
 # Default target
-all: $(TARGET)
+all: $(TARGET_PATH)
 	@echo The build completed successfully
 
 # Object file build rule
@@ -44,12 +44,12 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HDRS)
 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) -c $< -o $@ -MD $(LDFLAGS)
 
 # Executable build rule
-$(TARGET): $(OBJECTS) $(HDRS)
-	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+$(TARGET_PATH): $(OBJECTS) $(HDRS)
+	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $(OBJECTS) -o $(TARGET_PATH) $(LDFLAGS)
 
 # Clean rule
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET_PATH)
 	rm -f $(OBJECTS)
 	rm -f $(DEPS)
 

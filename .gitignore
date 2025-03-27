@@ -8,4 +8,5 @@ external
 lib/*
 inc/*
 models/*
-backup/*
+backup
+!models/mobileone_s0.apple_in1k.tflite
