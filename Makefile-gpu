@@ -10,17 +10,15 @@ TARGET := sample_gpu
 CXX := g++
 CXXFLAGS := -std=c++17  
 
-# Linker flags (OpenGL, GLES, TFLite, OpenCV, etc.)
+# Linker flags
 LDFLAGS := -Wl,--rpath=lib \
 	-lpthread \
-	-ltensorflowlite  
-	# -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs 
+	-ltensorflowlite  \
+	-ltensorflowlite_gpu_delegate -lEGL -lGLESv2 
 
 # Include paths
 INCS := -Iinc \
-		-I/usr/include \
-        -I/usr/include/opencv4 \
-        -I/usr/include/opencv2
+		-I/usr/include 
 
 # Library paths
 LIBS := -L/lib \

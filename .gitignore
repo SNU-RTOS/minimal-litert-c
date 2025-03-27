@@ -5,3 +5,6 @@ output
 *.txt
 *.log
 external
+lib/*
+inc/*
+models/*

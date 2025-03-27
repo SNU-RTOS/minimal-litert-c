@@ -30,6 +30,6 @@ fi
 
 
 ########## Update Path of tensorflow ##########
-cd ${ROOT_PATH}
+cd ${ROOT_PATH}/scripts
 ./build-litert.sh
 ./build-litert_gpu_delegate.sh
