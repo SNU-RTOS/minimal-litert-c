@@ -4,7 +4,8 @@
 ROOT_DIR := $(shell pwd)
 SRC_DIR := src
 OBJ_DIR := obj
-TARGET := sample
+TARGET := sample_cpu
+TARGET_PATH := output/$(TARGET)
 
 # Compiler settings
 CXX := g++
@@ -32,7 +33,7 @@ DEPS = $(OBJECTS:.o=.d)
 .PHONY: all clean
 
 # Default target
-all: $(TARGET)
+all: $(TARGET_PATH)
 	@echo The build completed successfully
 
 # Object file build rule
@@ -41,12 +42,12 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HDRS)
 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) -c $< -o $@ -MD $(LDFLAGS)
 
 # Executable build rule
-$(TARGET): $(OBJECTS) $(HDRS)
-	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+$(TARGET_PATH): $(OBJECTS) $(HDRS)
+	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $(OBJECTS) -o $(TARGET_PATH) $(LDFLAGS)
 
 # Clean rule
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET_PATH)
 	rm -f $(OBJECTS)
 	rm -f $(DEPS)
 

@@ -10,16 +10,11 @@ cd ${TENSORFLOW_PATH}
 echo "[INFO] Build LiteRT .so .."
 echo "[INFO] Path: ${LITERT_PATH}"
 
-# if [ !"${LITERT_PATH}" ]; then
 cd ${TENSORFLOW_PATH}
 pwd
-bazel build -c opt //tensorflow/lite:tensorflowlite \
+bazel build -c dbg //tensorflow/lite:tensorflowlite \
     --copt=-Os \
-    --copt=-fPIC \
-    --linkopt=-s
-# else
-# echo "[INFO] libtensorflowlite.so is already built, skipping ..."
-# fi
+    --copt=-fPIC 
 
 ########## Make symlink ##########
 ln -sf ${LITERT_PATH} ${ROOT_PATH}/lib/libtensorflowlite.so

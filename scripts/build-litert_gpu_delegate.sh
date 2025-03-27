@@ -9,16 +9,12 @@ cd ${TENSORFLOW_PATH}
 echo "[INFO] Build gpu delegate .so .."
 echo "[INFO] Path: ${GPU_DELEGATE_PATH}"
 
-# if [ !"${GPU_DELEGATE_PATH}" ]; then
 cd ${TENSORFLOW_PATH}
 pwd
-bazel build -c opt //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
+bazel build -c dbg //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
     --copt=-Os \
     --copt=-fPIC \
-    --linkopt=-s
-# else
-# echo "[INFO] libtensorflowlite_gpu_delegate.so is already built, skipping ..."
-# fi
+    --copt=-DTFLITE_GPU_DEBUG_LOGGING=1
 
 ########## Make symlink ##########
 ln -sf ${GPU_DELEGATE_PATH} ${ROOT_PATH}/lib/libtensorflowlite_gpu_delegate.so

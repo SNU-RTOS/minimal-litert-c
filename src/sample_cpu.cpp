@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 #include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model_builder.h"
@@ -18,13 +18,14 @@
 
 int main(int argc, char *argv[])
 {
-    setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
+    setenv("XNNPACK_FORCE_NO_SVE", "1", 1);
     if (argc != 2)
     {
         fprintf(stderr, "Usage: %s <tflite model>\n", argv[0]);
         return 1;
     }
     const char *filename = argv[1];
+
     printf("🔍 Loading model from: %s\n", filename);
 
     std::unique_ptr<tflite::FlatBufferModel> model =
@@ -37,14 +38,14 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
 
-    // Apply GPU delegate (OpenCL)
-    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
-    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
+    // Apply XNNPACK delegate
+    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
+    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
     bool delegate_applied = false;
 
-    if (gpu_delegate)
+    if (xnn_delegate)
     {
-        if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
+        if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
         }
@@ -57,7 +58,7 @@ int main(int argc, char *argv[])
     printf("📤 Output tensor count : %zu\n", interpreter->outputs().size());
     printf("📦 Total tensor count  : %ld\n", interpreter->tensors_size());
     printf("🔧 Node (op) count     : %zu\n", interpreter->nodes_size());
-    printf("🧩 GPU Delegate applied: %s\n", delegate_applied ? "Yes ✅" : "No ❌");
+    printf("🧩 Delegate applied    : %s\n", delegate_applied ? "Yes ✅" : "No ❌");
 
     if (interpreter->Invoke() == kTfLiteOk)
     {
@@ -68,6 +69,6 @@ int main(int argc, char *argv[])
         printf("❌ Inference failed.\n");
     }
 
-    TfLiteGpuDelegateV2Delete(gpu_delegate);
+    TfLiteXNNPackDelegateDelete(xnn_delegate);
     return 0;
 }
