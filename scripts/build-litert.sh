@@ -12,9 +12,16 @@ echo "[INFO] Path: ${LITERT_PATH}"
 
 cd ${TENSORFLOW_PATH}
 pwd
-bazel build -c dbg //tensorflow/lite:tensorflowlite \
+
+# Release mode
+bazel build -c opt //tensorflow/lite:tensorflowlite \
     --copt=-Os \
     --copt=-fPIC 
+
+# Debug mode
+# bazel build -c dbg //tensorflow/lite:tensorflowlite \
+#     --copt=-Os \
+#     --copt=-fPIC 
 
 ########## Make symlink ##########
 ln -sf ${LITERT_PATH} ${ROOT_PATH}/lib/libtensorflowlite.so

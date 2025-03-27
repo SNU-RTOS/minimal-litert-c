@@ -11,10 +11,16 @@ echo "[INFO] Path: ${GPU_DELEGATE_PATH}"
 
 cd ${TENSORFLOW_PATH}
 pwd
-bazel build -c dbg //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
+
+# Release mode
+bazel build -c opt //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
     --copt=-Os \
-    --copt=-fPIC \
-    --copt=-DTFLITE_GPU_DEBUG_LOGGING=1
+    --copt=-fPIC
+
+# Debug mode
+# bazel build -c dbg dbg //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
+#     --copt=-Os \
+#     --copt=-fPIC 
 
 ########## Make symlink ##########
 ln -sf ${GPU_DELEGATE_PATH} ${ROOT_PATH}/lib/libtensorflowlite_gpu_delegate.so
