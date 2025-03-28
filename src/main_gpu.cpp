@@ -131,6 +131,11 @@ int main(int argc, char *argv[])
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
 
+    /* Deallocate delegate */
+    if(gpu_delegate)
+    {
+        TfLiteGpuDelegateV2Delete(gpu_delegate);
+    }
     return 0;
 }
 

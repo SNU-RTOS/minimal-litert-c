@@ -9,12 +9,12 @@
 # echo "[INFO] Run sample_gpu"
 # ./output/sample_gpu ./models/mobilenetv3_small.tflite > sample_gpu_mobilenetv3.log
 
-# make -j4
-# echo "[INFO] Run main"
-# ./output/main \
-#     ./models/mobilenetv3_small.tflite \
-#     ./images/dog.jpg \
-#     ./labels.json
+make -j4
+echo "[INFO] Run main"
+./output/main \
+    ./models/mobilenetv3_small.tflite \
+    ./images/dog.jpg \
+    ./labels.json
 
 
 make -f Makefile_main_cpu -j4

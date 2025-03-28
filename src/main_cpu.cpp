@@ -126,6 +126,11 @@ int main(int argc, char *argv[])
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
 
+    /* Deallocate Delegate */
+    if (xnn_delegate)
+    {
+        TfLiteXNNPackDelegateDelete(xnn_delegate);
+    }
     return 0;
 }
 
