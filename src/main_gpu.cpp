@@ -48,8 +48,6 @@ int main(int argc, char *argv[])
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
 
-
-    
     /* Apply GPU Delegate */
     TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
     gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
@@ -132,7 +130,7 @@ int main(int argc, char *argv[])
     }
 
     /* Deallocate delegate */
-    if(gpu_delegate)
+    if (gpu_delegate)
     {
         TfLiteGpuDelegateV2Delete(gpu_delegate);
     }

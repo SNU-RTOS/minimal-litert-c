@@ -1,4 +1,4 @@
-//xnn-delegate-main
+// xnn-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
-    
+
     /* Allocate Tensor */
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
 
-    /* Deallocate Delegate */
+    /* Deallocate delegate */
     if (xnn_delegate)
     {
         TfLiteXNNPackDelegateDelete(xnn_delegate);

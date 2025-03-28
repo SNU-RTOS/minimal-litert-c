@@ -62,3 +62,27 @@ std::unordered_map<int, std::string> util::load_class_labels(const std::string &
 
     return label_map;
 }
+
+//**** For Section  2.4 ****/
+
+void util::timer_start(const std::string &label)
+{
+    util::timers[label] = Clock::now();
+}
+
+void util::timer_stop(const std::string &label)
+{
+    auto end = Clock::now();
+    if (util::timers.find(label) != util::timers.end())
+    {
+        auto start = timers[label];
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "[TIMER] " << label << " took " << duration << " ms" << std::endl;
+        timers.erase(label); // cleanup
+    }
+    else
+    {
+        std::cerr << "[TIMER] No start time recorded for label: " << label << std::endl;
+    }
+}
+//*==========================================*/
