@@ -9,7 +9,25 @@
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 
-void preprocessImage(const std::string& image_path, cv::Mat& output_rgb)
+void softmax(const float *logits, std::vector<float> &probs, int size)
+{
+    float max_val = *std::max_element(logits, logits + size);
+    float sum = 0.0f;
+    for (int i = 0; i < size; ++i)
+    {
+        probs[i] = std::exp(logits[i] - max_val);
+        sum += probs[i];
+    }
+    if (sum > 0.0f)
+    {
+        for (int i = 0; i < size; ++i)
+        {
+            probs[i] /= sum;
+        }
+    }
+}
+
+void preprocess_image(const std::string &image_path, cv::Mat &output_rgb)
 {
     cv::Mat image = cv::imread(image_path);
     if (image.empty())
@@ -31,56 +49,30 @@ void preprocessImage(const std::string& image_path, cv::Mat& output_rgb)
     cv::cvtColor(cropped, output_rgb, cv::COLOR_BGR2RGB);
 }
 
-void fillInputTensor(const cv::Mat& rgb, TfLiteTensor* input_tensor, tflite::Interpreter* interpreter)
+void fill_input_tensor(const cv::Mat &rgb, TfLiteTensor *input_tensor, tflite::Interpreter *interpreter)
 {
     const int height = 224, width = 224, channels = 3;
-    bool is_quant = (input_tensor->type == kTfLiteUInt8);
 
-    if (is_quant)
-    {
-        uint8_t* input = interpreter->typed_input_tensor<uint8_t>(0);
-        std::memcpy(input, rgb.data, height * width * channels);
-    }
-    else
-    {
-        float* input = interpreter->typed_input_tensor<float>(0);
-        const float mean[3] = {0.485f, 0.456f, 0.406f};
-        const float std[3] = {0.229f, 0.224f, 0.225f};
+    float *input = interpreter->typed_input_tensor<float>(0);
+    const float mean[3] = {0.485f, 0.456f, 0.406f};
+    const float std[3] = {0.229f, 0.224f, 0.225f};
 
-        for (int i = 0; i < height * width; ++i)
-        {
-            const cv::Vec3b& pix = rgb.at<cv::Vec3b>(i / width, i % width);
-            for (int c = 0; c < channels; ++c)
-                input[i * channels + c] = (pix[c] / 255.0f - mean[c]) / std[c];
-        }
+    for (int i = 0; i < height * width; ++i)
+    {
+        const cv::Vec3b &pix = rgb.at<cv::Vec3b>(i / width, i % width);
+        for (int c = 0; c < channels; ++c)
+            input[i * channels + c] = (pix[c] / 255.0f - mean[c]) / std[c];
     }
 }
 
-void softmaxStable(const float* input, std::vector<float>& output, int size)
-{
-    float max_val = *std::max_element(input, input + size);
-    float sum = 0.0f;
-    for (int i = 0; i < size; ++i)
-    {
-        output[i] = std::exp(input[i] - max_val);
-        sum += output[i];
-    }
-    if (sum > 0.0f)
-    {
-        for (int i = 0; i < size; ++i)
-        {
-            output[i] /= sum;
-        }
-    }
-}
-
-std::vector<int> topKIndices(const std::vector<float>& data, int k)
+std::vector<int> get_topK_indices(const std::vector<float> &data, int k)
 {
     std::vector<int> indices(data.size());
     std::iota(indices.begin(), indices.end(), 0);
     std::partial_sort(
         indices.begin(), indices.begin() + k, indices.end(),
-        [&data](int a, int b) { return data[a] > data[b]; });
+        [&data](int a, int b)
+        { return data[a] > data[b]; });
     indices.resize(k);
     return indices;
 }
@@ -110,55 +102,32 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    TfLiteTensor* input_tensor = interpreter->input_tensor(0);
+    TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     cv::Mat rgb_image;
 
-    try {
-        preprocessImage(argv[2], rgb_image);
-        fillInputTensor(rgb_image, input_tensor, interpreter.get());
-    } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        return 1;
-    }
+    preprocess_image(argv[2], rgb_image);
+    fill_input_tensor(rgb_image, input_tensor, interpreter.get());
 
+    // Inference
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
         return 1;
     }
 
-    TfLiteTensor* output_tensor = interpreter->output_tensor(0);
+    // Post process
+    TfLiteTensor *output_tensor = interpreter->output_tensor(0);
     int num_classes = output_tensor->dims->data[1];
+    float *logits = interpreter->typed_output_tensor<float>(0);
 
-    if (output_tensor->type == kTfLiteFloat32)
+    std::vector<float> probs(num_classes);
+    softmax(logits, probs, num_classes);
+
+    auto top_k_indices = get_topK_indices(probs, 5);
+    std::cout << "Top 5 predictions:" << std::endl;
+    for (int idx : top_k_indices)
     {
-        float* output_data = interpreter->typed_output_tensor<float>(0);
-        std::vector<float> probs(num_classes);
-        softmaxStable(output_data, probs, num_classes);
-
-        auto top_k_indices = topKIndices(probs, 5);
-        std::cout << "Top 5 predictions:" << std::endl;
-        for (int idx : top_k_indices)
-        {
-            std::cout << "Class " << idx << ": " << probs[idx] << std::endl;
-        }
-    }
-    else if (output_tensor->type == kTfLiteUInt8)
-    {
-        uint8_t* data = interpreter->typed_output_tensor<uint8_t>(0);
-        float scale = output_tensor->params.scale;
-        int zero = output_tensor->params.zero_point;
-
-        std::vector<float> scores(num_classes);
-        for (int i = 0; i < num_classes; ++i)
-            scores[i] = (data[i] - zero) * scale;
-
-        auto top_k_indices = topKIndices(scores, 5);
-        std::cout << "Top 5 predictions:" << std::endl;
-        for (int idx : top_k_indices)
-        {
-            std::cout << "Class " << idx << ": " << scores[idx] << std::endl;
-        }
+        std::cout << "Class " << idx << ": " << probs[idx] << std::endl;
     }
 
     return 0;
