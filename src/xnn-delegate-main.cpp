@@ -1,3 +1,4 @@
+//xnn-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -6,7 +7,7 @@
 
 #include <opencv2/opencv.hpp> //opencv
 
-#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
+#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
 #include "tensorflow/lite/model_builder.h"
 #include "tensorflow/lite/core/interpreter_builder.h"
 #include "tensorflow/lite/interpreter.h"
