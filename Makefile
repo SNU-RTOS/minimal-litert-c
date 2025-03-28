@@ -4,7 +4,7 @@
 ROOT_DIR := $(shell pwd)
 SRC_DIR := src
 OBJ_DIR := obj
-TARGET := cv_cpu
+TARGET := main
 TARGET_PATH := output/$(TARGET)
 
 # Compiler settings
@@ -15,7 +15,8 @@ CXXFLAGS := -std=c++17
 LDFLAGS := -Wl,--rpath=lib \
 	-lpthread \
 	-ltensorflowlite  \
-	-lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs 
+	-lopencv_core -lopencv_imgproc -lopencv_imgcodecs \
+	-ljsoncpp
 
 # Include paths
 INCS := -Iinc \
@@ -26,7 +27,7 @@ INCS := -Iinc \
 LIBS := -L/lib \
 
 # Source files and object files
-SRCS := $(TARGET).cpp
+SRCS := $(TARGET).cpp util.cpp
 HDRS := $(shell find $(SRC_DIR) -name '*.hpp')
 OBJS := $(SRCS:%.cpp=%.o)
 OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o,$(OBJS))

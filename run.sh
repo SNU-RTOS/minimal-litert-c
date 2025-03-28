@@ -10,5 +10,8 @@
 # ./output/sample_gpu ./models/mobilenetv3_small.tflite > sample_gpu_mobilenetv3.log
 
 make -j4
-echo "[INFO] Run cv_cpu"
-./output/cv_cpu ./models/mobilenetv3_small.tflite ./images/dog.jpg
+echo "[INFO] Run main"
+./output/main \
+    ./models/mobilenetv3_small.tflite \
+    ./images/dog.jpg \
+    ./labels.json
