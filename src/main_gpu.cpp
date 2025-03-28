@@ -1,4 +1,4 @@
-//xnn-delegate-main
+// gpu-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -8,6 +8,7 @@
 #include <opencv2/opencv.hpp> //opencv
 
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "tensorflow/lite/delegates/gpu/delegate.h"             // for gpu delegate
 #include "tensorflow/lite/model_builder.h"
 #include "tensorflow/lite/core/interpreter_builder.h"
 #include "tensorflow/lite/interpreter.h"
@@ -20,7 +21,7 @@ cv::Mat preprocess_image(cv::Mat &image, int target_width, int target_height);
 
 int main(int argc, char *argv[])
 {
-    std::cout << "====== main ====" << std::endl;
+    std::cout << "====== main_gpu ====" << std::endl;
 
     if (argc != 4)
     {
@@ -47,19 +48,23 @@ int main(int argc, char *argv[])
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
 
-    /* Apply XNNPACK delegate */
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+
+    
+    /* Apply GPU Delegate */
+    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
+    gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
+
+    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
     }
     else
     {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
+        std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
-    
+
     /* Allocate Tensor */
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
