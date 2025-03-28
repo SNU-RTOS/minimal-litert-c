@@ -14,19 +14,33 @@
 # ./output/main \
 #     ./models/mobilenetv3_small.tflite \
 #     ./images/dog.jpg \
-#     ./labels.json
+#     ./labels.json 
 
 
-make -f Makefile_main_cpu -j4
+# make -f Makefile_main_cpu -j4
+# echo "[INFO] Run main"
+# ./output/main_cpu \
+#     ./models/resnet34.tflite \
+#     ./images/dog.jpg \
+#     ./labels.json | tee output_main_cpu.log
+
+# make -f Makefile_main_gpu -j4
+# echo "[INFO] Run main"
+# ./output/main_gpu \
+#     ./models/resnet34.tflite \
+#     ./images/dog.jpg \
+#     ./labels.json | tee output_main_gpu.log
+
+make -f Makefile_main_cpu_metric -j4
 echo "[INFO] Run main"
-./output/main_cpu \
-    ./models/mobilenetv3_small.tflite \
+./output/main_cpu_metric \
+    ./models/resnet34.tflite \
     ./images/dog.jpg \
-    ./labels.json
+    ./labels.json  | tee output_main_cpu.log
 
-make -f Makefile_main_gpu -j4
+make -f Makefile_main_gpu_metric -j4
 echo "[INFO] Run main"
-./output/main_gpu \
-    ./models/mobilenetv3_small.tflite \
+./output/main_gpu_metric \
+    ./models/resnet34.tflite \
     ./images/dog.jpg \
-    ./labels.json
+    ./labels.json | tee output_main_gpu.log

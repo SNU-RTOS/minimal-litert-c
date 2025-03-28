@@ -67,22 +67,40 @@ std::unordered_map<int, std::string> util::load_class_labels(const std::string &
 
 void util::timer_start(const std::string &label)
 {
-    util::timers[label] = Clock::now();
+    util::timer_map[label] = util::TimerResult{util::Clock::now(), util::TimePoint{}, util::global_index++};
 }
 
 void util::timer_stop(const std::string &label)
 {
-    auto end = Clock::now();
-    if (util::timers.find(label) != util::timers.end())
+    auto it = util::timer_map.find(label);
+    if (it != timer_map.end())
     {
-        auto start = timers[label];
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "[TIMER] " << label << " took " << duration << " ms" << std::endl;
-        timers.erase(label); // cleanup
+        it->second.end = Clock::now();
+        it->second.stop_index = global_index++;
     }
     else
     {
-        std::cerr << "[TIMER] No start time recorded for label: " << label << std::endl;
+        std::cerr << "[WARN] No active timer for label: " << label << std::endl;
+    }
+}
+
+void util::print_all_timers()
+{
+    std::vector<std::pair<std::string, util::TimerResult>> ordered(util::timer_map.begin(), util::timer_map.end());
+    std::sort(ordered.begin(), ordered.end(),
+              [](const auto &a, const auto &b)
+              {
+                  return a.second.stop_index < b.second.stop_index; // ascend
+              });
+
+    std::cout << "\n[INFO] Elapsed time summary" << std::endl;
+    for (const auto &[label, record] : ordered)
+    {
+        if (record.end != util::TimePoint{})
+        {
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(record.end - record.start).count();
+            std::cout << "- " << label << " took " << ms << " ms" << std::endl;
+        }
     }
 }
 //*==========================================*/

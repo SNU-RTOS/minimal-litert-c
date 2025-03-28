@@ -21,10 +21,20 @@ namespace util
     using Clock = std::chrono::high_resolution_clock;
     using TimePoint = std::chrono::time_point<Clock>;
 
-    static std::unordered_map<std::string, TimePoint> timers;
+    struct TimerResult
+    {
+        TimePoint start;
+        TimePoint end;
+        int start_index;
+        int stop_index;
+    };
+
+    static std::unordered_map<std::string, TimerResult> timer_map;
+    static int global_index = 0;
 
     void timer_start(const std::string &label);
     void timer_stop(const std::string &label);
+    void print_all_timers();
     //*==========================================*/
 
     // Loads class labels from a JSON file, expects JSON format like: { "0": ["n01440764", "tench"], ... }
