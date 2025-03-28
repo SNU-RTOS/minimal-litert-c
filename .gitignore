@@ -12,3 +12,4 @@ backup/*
 !models/mobileone_s0.tflite
 !models/mobilenetv3_small.tflite
 .backup
+.vscode
