@@ -15,8 +15,8 @@
 #include "tensorflow/lite/model.h"
 #include "util.hpp"
 
-void softmax(const float *logits, std::vector<float> &probs, int size);
-cv::Mat preprocess_image(cv::Mat &image, int target_width, int target_height);
+void softmax_bool(const float *logits, std::vector<float> &probs, int size, bool apply_softmax);
+cv::Mat preprocess_image_resnet_keras_application_caffe(cv::Mat &image, int target_width, int target_height);
 
 int main(int argc, char *argv[])
 {
@@ -33,7 +33,6 @@ int main(int argc, char *argv[])
     const std::string label_path = argv[3];
 
     /* Load model */
-    util::timer_start("Load Model");
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!model)
@@ -41,19 +40,14 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    util::timer_stop("Load Model");
 
     /* Build interpreter */
-    util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
-    util::timer_stop("Build Interpreter");
-
 
     /* Apply XNNPACK delegate */
-    util::timer_start("Apply Delegate");
     TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
     TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
     bool delegate_applied = false;
@@ -65,32 +59,22 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
-    util::timer_stop("Apply Delegate");
-
 
     /* Allocate Tensor */
-    util::timer_start("Allocate Tensor");
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
-    util::timer_stop("Allocate Tensor");
-
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     /* Load input image */
-    util::timer_start("Load Input Image");
     cv::Mat origin_image = cv::imread(image_path);
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
-    util::timer_stop("Load Input Image");
 
     /* Preprocessing */
-    util::timer_start("E2E Total(Pre+Inf+Post)");
-    util::timer_start("Preprocessing");
-
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     int input_height = input_tensor->dims->data[1];
@@ -102,34 +86,21 @@ int main(int argc, char *argv[])
     std::cout << std::endl;
 
     // Preprocess input data
-    cv::Mat preprocessed_image = preprocess_image(origin_image, input_height, input_width);
+    cv::Mat preprocessed_image = preprocess_image_resnet_keras_application_caffe(origin_image, input_height, input_width);
 
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
     std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
                 preprocessed_image.total() * preprocessed_image.elemSize());
 
-    util::timer_stop("Preprocessing");
-
     /* Inference */
-    util::timer_start("Inference");
-
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
-        /* Deallocate delegate */
-        if (xnn_delegate)
-        {
-            TfLiteXNNPackDelegateDelete(xnn_delegate);
-        }
         return 1;
     }
 
-    util::timer_stop("Inference");
-
     /* PostProcessing */
-    util::timer_start("Postprocessing");
-
     // Get output tensor
     TfLiteTensor *output_tensor = interpreter->output_tensor(0);
     std::cout << "[INFO] Output shape : ";
@@ -140,12 +111,10 @@ int main(int argc, char *argv[])
     int num_classes = output_tensor->dims->data[1];
 
     std::vector<float> probs(num_classes);
-    softmax(logits, probs, num_classes);
 
-    util::timer_stop("Postprocessing");
-    util::timer_stop("E2E Total(Pre+Inf+Post)");
+    softmax_bool(logits, probs, num_classes, false);
 
-    /* Print Results */
+    // /* Print Results */
     // Load class label mapping
     auto label_map = util::load_class_labels(label_path);
 
@@ -158,10 +127,6 @@ int main(int argc, char *argv[])
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
 
-    /* Print Timers */
-    util::print_all_timers();
-    std::cout << "========================" << std::endl;
-
     /* Deallocate delegate */
     if (xnn_delegate)
     {
@@ -170,46 +135,53 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-// Preprocess: load, resize, center crop, RGB → float32 + normalize
-cv::Mat preprocess_image(cv::Mat &image, int target_height, int target_width)
+
+
+cv::Mat preprocess_image_resnet_keras_application_caffe(cv::Mat &image, int target_height, int target_width)
 {
-    int h = image.rows, w = image.cols;
-    float scale = 256.0f / std::min(h, w);
-    int new_h = static_cast<int>(h * scale);
-    int new_w = static_cast<int>(w * scale);
-
+    // Resize & convert to float32
     cv::Mat resized;
-    cv::resize(image, resized, cv::Size(new_w, new_h), 0, 0, cv::INTER_LINEAR);
+    cv::resize(image, resized, cv::Size(target_width, target_height), 0, 0, cv::INTER_LINEAR);
+    resized.convertTo(resized, CV_32FC3);
 
-    int x = (new_w - target_width) / 2;
-    int y = (new_h - target_height) / 2;
-    cv::Rect crop(x, y, target_width, target_height);
-
-    cv::Mat cropped = resized(crop);
-    cv::Mat rgb_image;
-    cv::cvtColor(cropped, rgb_image, cv::COLOR_BGR2RGB);
-
-    // Normalize to float32
-    cv::Mat float_image;
-    rgb_image.convertTo(float_image, CV_32FC3, 1.0 / 255.0);
-
-    const float mean[3] = {0.485f, 0.456f, 0.406f};
-    const float std[3] = {0.229f, 0.224f, 0.225f};
+    // Per-channel normalization (mean/std in RGB order)
+    // const float mean[3] = {103.939f, 116.779f, 123.68f}; // BGR 순서
+    const float mean[3] = {0.406f, 0.456f, 0.485f}; // BGR 순서
 
     std::vector<cv::Mat> channels(3);
-    cv::split(float_image, channels);
+    cv::split(resized, channels);
     for (int c = 0; c < 3; ++c)
-        channels[c] = (channels[c] - mean[c]) / std[c];
-    cv::merge(channels, float_image);
+    {
+        channels[c] = (channels[c] - (mean[c] * 255));
+    }
 
-    return float_image;
+    cv::Mat normalized;
+    cv::merge(channels, normalized); // back to CV_32FC3, RGB order
+
+    // Debug: check range
+    double min_val, max_val;
+    cv::minMaxLoc(normalized.reshape(1), &min_val, &max_val);
+    std::cout << "Normalized RGB image range: [" << min_val << ", " << max_val << "]" << std::endl;
+
+    return normalized;
 }
 
 // Apply softmax to logits
-void softmax(const float *logits, std::vector<float> &probs, int size)
+void softmax_bool(const float *logits, std::vector<float> &probs, int size, bool apply_softmax = true)
 {
+    probs.resize(size);
+
     float max_val = *std::max_element(logits, logits + size);
     float sum = 0.0f;
+    if (!apply_softmax)
+    {
+        for (int i = 0; i < size; ++i)
+        {
+            probs[i] = logits[i];
+        }
+        return;
+    }
+
     for (int i = 0; i < size; ++i)
     {
         probs[i] = std::exp(logits[i] - max_val);
