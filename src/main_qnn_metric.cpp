@@ -1,13 +1,14 @@
-// xnn-delegate-main
+// qnn-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <algorithm>
 #include <numeric>
 
-#include "opencv2/opencv.hpp" //opencv
+#include <opencv2/opencv.hpp> //opencv
 
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "TFLiteDelegate/QnnTFLiteDelegate.h" // for QNN delegate
 #include "tensorflow/lite/model_builder.h"
 #include "tensorflow/lite/core/interpreter_builder.h"
 #include "tensorflow/lite/interpreter.h"
@@ -20,7 +21,7 @@ cv::Mat preprocess_image(cv::Mat &image, int target_width, int target_height);
 
 int main(int argc, char *argv[])
 {
-    std::cout << "====== main_cpu ====" << std::endl;
+    std::cout << "====== main_qnn ====" << std::endl;
 
     if (argc != 4)
     {
@@ -51,22 +52,28 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-
-    /* Apply XNNPACK delegate */
-    util::timer_start("Apply Delegate");
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+    /* Apply QNN Delegate */
+    // Create QNN Delegate options structure.
+    TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
+    // Set the mandatory backend_type option. All other options have default values.
+    options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
+    // options.backend_type = kGpuBackend; // GPU backend 
+    // options.backend_type = kDspBackend; // Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
+    TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    
+    if (qnn_delegate)
     {
-        delegate_applied = true;
+        if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
+        {
+            delegate_applied = true;
+        }
     }
     else
     {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
+        std::cerr << "Failed to apply QNN delegate" << std::endl;
     }
     util::timer_stop("Apply Delegate");
-
 
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor");
@@ -76,7 +83,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     util::timer_stop("Allocate Tensor");
-
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
@@ -90,7 +96,6 @@ int main(int argc, char *argv[])
     /* Preprocessing */
     util::timer_start("E2E Total(Pre+Inf+Post)");
     util::timer_start("Preprocessing");
-
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     int input_height = input_tensor->dims->data[1];
@@ -117,14 +122,8 @@ int main(int argc, char *argv[])
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
-        /* Deallocate delegate */
-        if (xnn_delegate)
-        {
-            TfLiteXNNPackDelegateDelete(xnn_delegate);
-        }
         return 1;
     }
-
     util::timer_stop("Inference");
 
     /* PostProcessing */
@@ -163,9 +162,9 @@ int main(int argc, char *argv[])
     std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
-    if (xnn_delegate)
+    if (qnn_delegate)
     {
-        TfLiteXNNPackDelegateDelete(xnn_delegate);
+        TfLiteQnnDelegateDelete(qnn_delegate);
     }
     return 0;
 }

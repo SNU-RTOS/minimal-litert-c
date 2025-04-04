@@ -13,12 +13,13 @@ echo "[INFO] Path: ${LITERT_PATH}"
 cd ${TENSORFLOW_PATH}
 pwd
 
-# Release mode
+# Release mode (Note: -Wno-incompatible-pointer-types could cause undefined behavior)
 bazel build -c opt //tensorflow/lite:tensorflowlite \
     --copt=-Os \
     --copt=-fPIC \
+    --copt=-Wno-incompatible-pointer-types \
     --linkopt=-s
-
+bazel shutdown
 # Debug mode
 # bazel build -c dbg //tensorflow/lite:tensorflowlite \
 #     --copt=-Os \

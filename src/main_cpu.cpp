@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <numeric>
 
-#include <opencv2/opencv.hpp> //opencv
+#include "opencv2/opencv.hpp" //opencv
 
 #include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
 #include "tensorflow/lite/model_builder.h"
