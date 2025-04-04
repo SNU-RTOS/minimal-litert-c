@@ -22,7 +22,7 @@ if [ ! -d "./tensorflow" ]; then
     git clone --branch v${TENSORFLOW_VERSION} \
         --depth 1 https://github.com/tensorflow/tensorflow.git
     cd ${TENSORFLOW_PATH}
-    ./configure    
+    ./configure
 else
     echo "[INFO] tensorflow is already installed, skipping ..."
 fi
