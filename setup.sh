@@ -28,13 +28,6 @@ else
     echo "[INFO] tensorflow is already installed, skipping ..."
 fi
 
-
-########## Build LiteRT ##########
-cd ${ROOT_PATH}/scripts
-./build-litert.sh
-./build-litert_gpu_delegate.sh
-
-
 ########## Make folders ##########
 cd ${ROOT_PATH}
 if [ ! -d "inc" ]; then
@@ -52,6 +45,13 @@ fi
 if [ ! -d "output" ]; then
     mkdir output  
 fi
+
+########## Build LiteRT ##########
+cd ${ROOT_PATH}/scripts
+./build-litert.sh
+./build-litert_gpu_delegate.sh
+
+
 
 
 echo "[INFO] Setup Finished"
