@@ -18,6 +18,7 @@
 
 int main(int argc, char *argv[])
 {
+    printf("====== verify_gpu ====\n");
     setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
     if (argc != 2)
     {
