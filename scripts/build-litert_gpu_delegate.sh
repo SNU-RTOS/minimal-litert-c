@@ -15,8 +15,9 @@ pwd
 # Release mode
 bazel build -c opt //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
     --copt=-Os \
-    --copt=-fPIC
-
+    --copt=-fPIC \
+    --linkopt=-s
+bazel shutdown
 # Debug mode
 # bazel build -c dbg dbg //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
 #     --copt=-Os \
