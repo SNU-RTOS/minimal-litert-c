@@ -4,13 +4,12 @@
 ROOT_DIR := $(shell pwd)
 SRC_DIR := src
 OBJ_DIR := obj
-TARGET := main_gpu_metric
+TARGET := main_qnn_metric
 TARGET_PATH := output/$(TARGET)
 
 # Compiler settings
 CXX := g++
 CXXFLAGS := -std=c++17  -O3
-
 
 # Linker flags
 LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
@@ -18,7 +17,8 @@ LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
 	-ltensorflowlite  \
 	-ltensorflowlite_gpu_delegate -lEGL -lGLESv2 \
 	-lopencv_core -lopencv_imgproc -lopencv_imgcodecs \
-	-ljsoncpp 
+	-ljsoncpp \
+	-lQnnTFLiteDelegate # /usr/lib/libQnnTFLiteDelegate.so or QNN_SDK_PATH
 
 # Include paths
 INCS := -Iinc \

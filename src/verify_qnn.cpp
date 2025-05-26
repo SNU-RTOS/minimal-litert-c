@@ -2,13 +2,13 @@
 #include <memory>
 #include <vector>
 #include <cstdlib>
-#include <chrono>
 
 #include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model_builder.h"
+
+#include "TFLiteDelegate/QnnTFLiteDelegate.h" // for QNN delegate
 
 #define TFLITE_MINIMAL_CHECK(x)                                     \
     if (!(x))                                                       \
@@ -17,35 +17,8 @@
         exit(1);                                                    \
     }
 
-void PrintTopKPredictions(const TfLiteTensor* output_tensor, int top_k = 5)
-{
-    const float* scores = output_tensor->data.f;
-    int num_classes = output_tensor->dims->data[output_tensor->dims->size - 1];
-
-    // Pair of <score, index>
-    std::vector<std::pair<float, int>> score_index_pairs;
-    for (int i = 0; i < num_classes; ++i)
-    {
-        score_index_pairs.emplace_back(scores[i], i);
-    }
-
-    // Sort descending by score
-    std::partial_sort(
-        score_index_pairs.begin(), score_index_pairs.begin() + top_k, score_index_pairs.end(),
-        [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-            return a.first > b.first;
-        });
-
-    printf("\n🔝 Top %d Predictions:\n", top_k);
-    for (int i = 0; i < top_k && i < num_classes; ++i)
-    {
-        printf("  #%d: Class %d => Score: %.6f\n", i + 1, score_index_pairs[i].second, score_index_pairs[i].first);
-    }
-}
-
 int main(int argc, char *argv[])
 {
-    printf("====== verify_gpu ====\n");
     setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
     if (argc != 2)
     {
@@ -65,14 +38,19 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
 
-    // Apply GPU delegate (OpenCL)
-    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
-    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
+    // Create QNN Delegate options structure.
+    TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
+
+    // Set the mandatory backend_type option. All other options have default values.
+    // options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
+    options.backend_type = kGpuBackend; // GPU backend 
+    // options.backend_type = kDspBackend; //Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
+    TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
     bool delegate_applied = false;
 
-    if (gpu_delegate)
+    if (qnn_delegate)
     {
-        if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
+        if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
         }
@@ -85,25 +63,17 @@ int main(int argc, char *argv[])
     printf("📤 Output tensor count : %zu\n", interpreter->outputs().size());
     printf("📦 Total tensor count  : %ld\n", interpreter->tensors_size());
     printf("🔧 Node (op) count     : %zu\n", interpreter->nodes_size());
-    printf("🧩 GPU Delegate applied: %s\n", delegate_applied ? "Yes ✅" : "No ❌");
+    printf("🧩 QNN Delegate applied: %s\n", delegate_applied ? "Yes ✅" : "No ❌");
 
-    auto start = std::chrono::high_resolution_clock::now();
     if (interpreter->Invoke() == kTfLiteOk)
     {
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-        printf("🚀 Inference completed successfully in %d [ms].\n", duration);
-
-        // Print top-5 predictions
-        int output_index = interpreter->outputs()[0];
-        const TfLiteTensor* output_tensor = interpreter->tensor(output_index);
-        PrintTopKPredictions(output_tensor, 5);
+        printf("🚀 Inference completed successfully.\n");
     }
     else
     {
         printf("❌ Inference failed.\n");
     }
 
-    TfLiteGpuDelegateV2Delete(gpu_delegate);
+    TfLiteQnnDelegateDelete(qnn_delegate);
     return 0;
 }
