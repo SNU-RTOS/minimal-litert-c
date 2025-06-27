@@ -1,62 +1,101 @@
 #!/bin/bash
-echo "[INFO] Build verify_cpu"
-make -f Makefile_verify_cpu -j4
-echo "[INFO] Run verify_cpu"
-./output/verify_cpu ./models/mobileone_s0.tflite 2>&1 |
-    tee verify_cpu_mobileone_s0.log
+# This script is used to run the minimal litert-c example
+# It builds the verify_cpu and verify_gpu programs and runs them
+# It also builds the main_cpu program and runs it
+# It is assumed that the litert-c library is already built and available in the lib directory
+# The script will log the output of each program to a separate log file
 
-echo "[INFO] Build verify_gpu"
-make -f Makefile_verify_gpu -j4
-echo "[INFO] Run verify_gpu"
-./output/verify_gpu ./models/mobileone_s0.tflite 2>&1 |
-    tee verify_gpu_mobileone_s0.log
+run_verify() {
+  local mode="$1"         # Example: cpu
+  local model="$2"        # Path of Model: ./models/mobileone_s0.tflite
+  local logfile="verify_${mode}_$(basename "${model%.*}").log"
 
-echo "[INFO] Build verify_qnn"
-make -f Makefile_verify_qnn -j4
-echo "[INFO] Run verify_qnn"
-sudo ./output/verify_qnn ./models/mobileone_s0.tflite 2>&1 |
-    tee verify_qnn_mobileone_s0.log
-# strace -e open,openat,access ./output/verify_qnn ./models/mobileone_s0.tflite |
-#     tee verify_qnn_mobileone_s0.log
+  (
+    exec > >(tee "$logfile") 2>&1
+    echo "================================"
+    echo "[INFO] Build verify_${mode}"
+    make -f Makefile_verify_${mode} -j4
 
-make -f Makefile_main_cpu -j4
-echo "[INFO] Run main_cpu"
-./output/main_cpu \
-    ./models/mobileone_s0.tflite \
-    ./images/dog.jpg \
-    ./labels.json 2>&1 | tee output_main_cpu.log
+    echo "[INFO] Run verify_${mode}"
+    ./output/verify_${mode} "$model"
+    echo "[INFO] Run verify_${mode} finished"
+  )
+}
 
-make -f Makefile_main_gpu -j4
-echo "[INFO] Run main_gpu"
-./output/main_gpu \
-    ./models/mobileone_s0.tflite \
-    ./images/dog.jpg \
-    ./labels.json 2>&1 | tee output_main_gpu.log
+run_main() {
+  local mode="$1"          # Example: cpu
+  local model="$2"         # Example: ./models/resnet34.tflite
+  local image="$3"         # Example: ./images/dog.jpg
+  local label="$4"         # Example: ./labels.json
 
-make -f Makefile_main_cpu_metric -j4
-echo "[INFO] Run main_cpu_metric"
-./output/main_cpu_metric \
-    ./models/mobileone_s0.tflite \
-    ./images/dog.jpg \
-    ./labels.json 2>&1 | tee output_main_cpu_metric.log
+  local model_base
+  model_base=$(basename "${model%.*}")
+  local logfile="output_main_${mode}_${model_base}.log"
 
-make -f Makefile_main_gpu_metric -j4
-echo "[INFO] Run main_gpu_metric"
-./output/main_gpu_metric \
-    ./models/mobileone_s0.tflite \
-    ./images/dog.jpg \
-    ./labels.json 2>&1 | tee output_main_gpu_metric.log
+  (
+    exec > >(tee "$logfile") 2>&1
 
-make -f Makefile_main_qnn_metric -j4
-echo "[INFO] Run main_qnn_metric"
-sudo ./output/main_qnn_metric \
-    ./models/mobileone_s0.tflite \
-    ./images/dog.jpg \
-    ./labels.json 2>&1 | tee output_main_qnn_metric.log
+    echo "================================"
+    echo "[INFO] Build main_${mode}"
+    make -f Makefile_main_${mode} -j4
 
-# make -f Makefile_main_cpu_keras -j4
-# echo "[INFO] Run main_cpu_keras"
-# ./output/main_cpu_keras \
-#    ./models/resnet50-keras-application.tflite \
-#    ./images/dog.jpg \
-#    ./labels.json 2>&1 | tee output_main_cpu_keras.log
+    echo "[INFO] Run main_${mode}"
+    ./output/main_${mode} "$model" "$image" "$label"
+  )
+}
+
+
+run_main_metric() {
+  local mode="$1"          # Example: cpu
+  local model="$2"         # Example: ./models/resnet34.tflite
+  local image="$3"         # Example: ./images/dog.jpg
+  local label="$4"         # Example: ./labels.json
+
+  local model_base
+  model_base=$(basename "${model%.*}")
+  local logfile="output_main_metric_${mode}_${model_base}.log"
+
+  (
+    exec > >(tee "$logfile") 2>&1
+
+    echo "================================"
+    echo "[INFO] Build main_${mode}_metric"
+    make -f Makefile_main_${mode}_metric -j4
+
+    echo "[INFO] Run main_${mode}_metric"
+    ./output/main_${mode}_metric "$model" "$image" "$label"
+  )
+}
+
+##################### main #####################
+# run_verify cpu ./models/mobileone_s0.tflite
+# run_verify gpu ./models/resnet.tflite
+run_verify qnn ./models/resnet_quantize.tflite
+# run_main_metric cpu ./models/resnet_quantize.tflite ./images/dog.jpg ./labels.json
+# run_main_metric qnn ./models/resnet_quantize.tflite ./images/dog.jpg ./labels.json
+# run_main_metric gpu ./models/resnet_quantize.tflite ./images/dog.jpg ./labels.json
+
+
+# run_main cpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
+
+# LOGFILE=verify_cpu_mobileone_s0.log
+# exec > >(tee "$LOGFILE") 2>&1
+# echo "[INFO] Build verify_cpu"
+# make -f Makefile_verify_cpu -j4
+# echo "[INFO] Run verify_cpu"
+# ./output/verify_cpu ./models/mobileone_s0.tflite
+
+# LOGFILE=verify_gpu_mobileone_s0.log
+# exec > >(tee "$LOGFILE") 2>&1
+# echo "[INFO] Build verify_gpu"
+# make -f Makefile_verify_gpu -j4
+# echo "[INFO] Run verify_gpu"
+# ./output/verify_gpu ./models/mobileone_s0.tflite 
+
+# make -f Makefile_main_cpu -j4
+# echo "[INFO] Run main_cpu"
+# ./output/main_cpu \
+#     ./models/resnet34.tflite \
+#     ./images/dog.jpg \
+#     ./labels.json | tee output_main_cpu.log
+

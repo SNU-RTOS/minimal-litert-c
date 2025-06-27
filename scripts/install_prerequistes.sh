@@ -28,42 +28,6 @@ sudo apt install -y --no-install-recommends \
     libxmlsec1-dev 
 
 
-# (optional) install zsh
-##################
-# Step 1: Install zsh, oh-my-zsh, powerlevel10k theme
-sudo apt install zsh -y
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
-
-# Step 2: Replace ZSH_THEME in ~/.zshrc
-sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
-
-# zsh-syntax-highlighting
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
-
-# zsh-autosuggestions
-git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-
-# update .zshrc
-# 7. plugins 라인 수정 (기존에 있으면 교체)
-if grep -q '^plugins=' ~/.zshrc; then
-  sed -i 's/^plugins=.*/plugins=(git zsh-syntax-highlighting zsh-autosuggestions)/' ~/.zshrc
-else
-  echo 'plugins=(git zsh-syntax-highlighting zsh-autosuggestions)' >> ~/.zshrc
-fi
-
-# Step 3: Add p10k auto-config logic if not exists
-if ! grep -q 'p10k configure' ~/.zshrc; then
-  echo -e '\n[[ ! -f ~/.p10k.zsh ]] && p10k configure' >> ~/.zshrc
-  echo '[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh' >> ~/.zshrc
-fi
-
-# Step 4: Set zsh as default shell (optional)
-chsh -s $(which zsh)
-##################
-
-
-
 # install Pyenv
 curl -fsSL https://pyenv.run | bash
 
@@ -73,31 +37,63 @@ echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init --path)"\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
 source ~/.bashrc
 
-# update .zshrc
-# echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
-# echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
-# echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init --path)"\n  eval "$(pyenv init -)"\nfi' >> ~/.zshrc
-# source ~/.zshrc
-
+# install python 3.10.16
 pyenv install 3.10.16
 pyenv global 3.10.16
 
-# python3 -m venv .pip-minimal-litert-c
-# source .pip-minimal-litert-c/bin/activate
-# echo 'source $(pwd)/.pip-minimal-litert-c/bin/activate' >> ~/.zshrc
-# echo 'export HERMETIC_PYTHON_VERSION=3.10' >> ~/.zshrc
+# create python virtual environment
+python3 -m venv .ws_pip
+source .ws_pip/bin/activate
+echo 'source $(pwd)/.ws_pip/bin/activate' >> ~/.zshrc
 
-# install bazelisk
+# install bazelisk and bazel
 sudo curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o /usr/local/bin/bazelisk
 sudo chmod +x /usr/local/bin/bazelisk
 sudo ln -s /usr/local/bin/bazelisk /usr/bin/bazel
+echo 'export HERMETIC_PYTHON_VERSION=3.10' >> ~/.zshrc
+
+source ~/.bashrc
 
 
+# (optional) install zsh
+##################
+# # Step 1: Install zsh, oh-my-zsh, powerlevel10k theme
+# sudo apt install zsh -y
+# sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 
+# # Step 2: Replace ZSH_THEME in ~/.zshrc
+# sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc
 
+# # zsh-syntax-highlighting
+# git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
+# # zsh-autosuggestions
+# git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
 
+# # update .zshrc
+# # 7. plugins 라인 수정 (기존에 있으면 교체)
+# if grep -q '^plugins=' ~/.zshrc; then
+#   sed -i 's/^plugins=.*/plugins=(git zsh-syntax-highlighting zsh-autosuggestions)/' ~/.zshrc
+# else
+#   echo 'plugins=(git zsh-syntax-highlighting zsh-autosuggestions)' >> ~/.zshrc
+# fi
 
+# # Step 3: Add p10k auto-config logic if not exists
+# if ! grep -q 'p10k configure' ~/.zshrc; then
+#   echo -e '\n[[ ! -f ~/.p10k.zsh ]] && p10k configure' >> ~/.zshrc
+#   echo '[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh' >> ~/.zshrc
+# fi
+
+# # Step 4: Set zsh as default shell (optional)
+# chsh -s $(which zsh)
+
+# # update .zshrc to support pyevn
+# # echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+# # echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
+# # echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init --path)"\n  eval "$(pyenv init -)"\nfi' >> ~/.zshrc
+# # source ~/.zshrc
+##################
 
 
 # sudo apt install libopencv-dev -y

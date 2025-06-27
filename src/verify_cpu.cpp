@@ -18,7 +18,8 @@
 
 int main(int argc, char *argv[])
 {
-    setenv("XNNPACK_FORCE_NO_SVE", "1", 1);
+    printf("====== verify_cpu ====\n");
+    setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
     if (argc != 2)
     {
         fprintf(stderr, "Usage: %s <tflite model>\n", argv[0]);

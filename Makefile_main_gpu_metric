@@ -9,7 +9,8 @@ TARGET_PATH := output/$(TARGET)
 
 # Compiler settings
 CXX := g++
-CXXFLAGS := -std=c++17  
+CXXFLAGS := -std=c++17  -O3
+
 
 # Linker flags
 LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \

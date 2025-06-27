@@ -53,19 +53,21 @@ int main(int argc, char *argv[])
     util::timer_stop("Build Interpreter");
 
     /* Apply QNN Delegate */
-    util::timer_start("Apply Delegate");
     // Create QNN Delegate options structure.
     TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
     // Set the mandatory backend_type option. All other options have default values.
-    // options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
-    options.backend_type = kGpuBackend; // GPU backend 
+    options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
+    // options.backend_type = kGpuBackend; // GPU backend 
     // options.backend_type = kDspBackend; // Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
     TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
     bool delegate_applied = false;
     
-    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
+    if (qnn_delegate)
     {
-        delegate_applied = true;
+        if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
+        {
+            delegate_applied = true;
+        }
     }
     else
     {
@@ -106,8 +108,7 @@ int main(int argc, char *argv[])
 
     // Preprocess input data
     cv::Mat preprocessed_image = preprocess_image(origin_image, input_height, input_width);
-    std::cout << "[DEBUG] Input tensor type: " << input_tensor->type << std::endl;
-    
+
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
     std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
