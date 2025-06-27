@@ -3,12 +3,12 @@
 #include <vector>
 #include <cstdlib>
 
-#include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/model_builder.h"
-
+#include "tflite/interpreter_builder.h"
+#include "tflite/kernels/register.h"
+#include "tflite/interpreter.h"
+#include "tflite/model_builder.h"
 #include "TFLiteDelegate/QnnTFLiteDelegate.h" // for QNN delegate
+
 
 #define TFLITE_MINIMAL_CHECK(x)                                     \
     if (!(x))                                                       \

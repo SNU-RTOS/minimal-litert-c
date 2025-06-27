@@ -2,13 +2,12 @@
 #include <memory>
 #include <vector>
 #include <cstdlib>
-#include <chrono>
 
-#include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/model_builder.h"
+#include "tflite/interpreter_builder.h"
+#include "tflite/kernels/register.h"
+#include "tflite/interpreter.h"
+#include "tflite/model_builder.h"
+#include "tflite/delegates/gpu/delegate.h"
 
 #define TFLITE_MINIMAL_CHECK(x)                                     \
     if (!(x))                                                       \
@@ -87,17 +86,9 @@ int main(int argc, char *argv[])
     printf("🔧 Node (op) count     : %zu\n", interpreter->nodes_size());
     printf("🧩 GPU Delegate applied: %s\n", delegate_applied ? "Yes ✅" : "No ❌");
 
-    auto start = std::chrono::high_resolution_clock::now();
     if (interpreter->Invoke() == kTfLiteOk)
     {
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-        printf("🚀 Inference completed successfully in %d [ms].\n", duration);
-
-        // Print top-5 predictions
-        int output_index = interpreter->outputs()[0];
-        const TfLiteTensor* output_tensor = interpreter->tensor(output_index);
-        PrintTopKPredictions(output_tensor, 5);
+        printf("🚀 Inference completed successfully.\n");
     }
     else
     {

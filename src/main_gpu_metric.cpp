@@ -7,17 +7,15 @@
 
 #include <opencv2/opencv.hpp> //opencv
 
-#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
-#include "tensorflow/lite/delegates/gpu/delegate.h"             // for gpu delegate
-#include "tensorflow/lite/model_builder.h"
-#include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
+#include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "tflite/delegates/gpu/delegate.h"             // for gpu delegate
+#include "tflite/model_builder.h"
+#include "tflite/core/interpreter_builder.h"
+#include "tflite/interpreter.h"
+#include "tflite/kernels/register.h"
+#include "tflite/model.h"
 #include "util.hpp"
 
-void softmax(const float *logits, std::vector<float> &probs, int size);
-cv::Mat preprocess_image(cv::Mat &image, int target_width, int target_height);
 
 int main(int argc, char *argv[])
 {
@@ -101,7 +99,7 @@ int main(int argc, char *argv[])
     std::cout << std::endl;
 
     // Preprocess input data
-    cv::Mat preprocessed_image = preprocess_image(origin_image, input_height, input_width);
+    cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
 
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
@@ -133,7 +131,7 @@ int main(int argc, char *argv[])
     int num_classes = output_tensor->dims->data[1];
 
     std::vector<float> probs(num_classes);
-    softmax(logits, probs, num_classes);
+    util::softmax(logits, probs, num_classes);
 
     util::timer_stop("Postprocessing");
     util::timer_stop("E2E Total(Pre+Inf+Post)");
@@ -161,58 +159,4 @@ int main(int argc, char *argv[])
         TfLiteGpuDelegateV2Delete(gpu_delegate);
     }
     return 0;
-}
-
-// Preprocess: load, resize, center crop, RGB → float32 + normalize
-cv::Mat preprocess_image(cv::Mat &image, int target_height, int target_width)
-{
-    int h = image.rows, w = image.cols;
-    float scale = 256.0f / std::min(h, w);
-    int new_h = static_cast<int>(h * scale);
-    int new_w = static_cast<int>(w * scale);
-
-    cv::Mat resized;
-    cv::resize(image, resized, cv::Size(new_w, new_h), 0, 0, cv::INTER_LINEAR);
-
-    int x = (new_w - target_width) / 2;
-    int y = (new_h - target_height) / 2;
-    cv::Rect crop(x, y, target_width, target_height);
-
-    cv::Mat cropped = resized(crop);
-    cv::Mat rgb_image;
-    cv::cvtColor(cropped, rgb_image, cv::COLOR_BGR2RGB);
-
-    // Normalize to float32
-    cv::Mat float_image;
-    rgb_image.convertTo(float_image, CV_32FC3, 1.0 / 255.0);
-
-    const float mean[3] = {0.485f, 0.456f, 0.406f};
-    const float std[3] = {0.229f, 0.224f, 0.225f};
-
-    std::vector<cv::Mat> channels(3);
-    cv::split(float_image, channels);
-    for (int c = 0; c < 3; ++c)
-        channels[c] = (channels[c] - mean[c]) / std[c];
-    cv::merge(channels, float_image);
-
-    return float_image;
-}
-
-// Apply softmax to logits
-void softmax(const float *logits, std::vector<float> &probs, int size)
-{
-    float max_val = *std::max_element(logits, logits + size);
-    float sum = 0.0f;
-    for (int i = 0; i < size; ++i)
-    {
-        probs[i] = std::exp(logits[i] - max_val);
-        sum += probs[i];
-    }
-    if (sum > 0.0f)
-    {
-        for (int i = 0; i < size; ++i)
-        {
-            probs[i] /= sum;
-        }
-    }
 }

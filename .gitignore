@@ -13,3 +13,4 @@ backup/*
 !models/mobilenetv3_small.tflite
 .backup
 .vscode
+.env

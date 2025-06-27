@@ -103,4 +103,60 @@ void util::print_all_timers()
         }
     }
 }
+
+
+// Preprocess: load, resize, center crop, RGB → float32 + normalize
+cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_width)
+{
+    int h = image.rows, w = image.cols;
+    float scale = 256.0f / std::min(h, w);
+    int new_h = static_cast<int>(h * scale);
+    int new_w = static_cast<int>(w * scale);
+
+    cv::Mat resized;
+    cv::resize(image, resized, cv::Size(new_w, new_h), 0, 0, cv::INTER_LINEAR);
+
+    int x = (new_w - target_width) / 2;
+    int y = (new_h - target_height) / 2;
+    cv::Rect crop(x, y, target_width, target_height);
+
+    cv::Mat cropped = resized(crop);
+    cv::Mat rgb_image;
+    cv::cvtColor(cropped, rgb_image, cv::COLOR_BGR2RGB);
+
+    // Normalize to float32
+    cv::Mat float_image;
+    rgb_image.convertTo(float_image, CV_32FC3, 1.0 / 255.0);
+
+    const float mean[3] = {0.485f, 0.456f, 0.406f};
+    const float std[3] = {0.229f, 0.224f, 0.225f};
+
+    std::vector<cv::Mat> channels(3);
+    cv::split(float_image, channels);
+    for (int c = 0; c < 3; ++c)
+        channels[c] = (channels[c] - mean[c]) / std[c];
+    cv::merge(channels, float_image);
+
+    return float_image;
+}
+
+// Apply softmax to logits
+void util::softmax(const float *logits, std::vector<float> &probs, int size)
+{
+    float max_val = *std::max_element(logits, logits + size);
+    float sum = 0.0f;
+    for (int i = 0; i < size; ++i)
+    {
+        probs[i] = std::exp(logits[i] - max_val);
+        sum += probs[i];
+    }
+    if (sum > 0.0f)
+    {
+        for (int i = 0; i < size; ++i)
+        {
+            probs[i] /= sum;
+        }
+    }
+}
+
 //*==========================================*/
