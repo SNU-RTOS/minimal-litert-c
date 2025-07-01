@@ -70,8 +70,5 @@ run_main_metric() {
 ##################### main #####################
 run_verify cpu ./models/mobileone_s0.tflite
 run_verify gpu ./models/mobileone_s0.tflite
-# run_verify qnn ./models/resnet_quantize.tflite
-# run_main cpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
-run_main_metric cpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
-run_main_metric gpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
-# run_main_metric qnn ./models/resnet_quantize.tflite ./images/dog.jpg ./labels.json
+run_verify qnn ./models/mobileone_s0.tflite
+\
