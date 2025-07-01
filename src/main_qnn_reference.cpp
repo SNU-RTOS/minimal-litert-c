@@ -7,7 +7,7 @@
 
 #include <opencv2/opencv.hpp> //opencv
 
-//! Add cpp header to use QNN delegate
+#include "TFLiteDelegate/QnnTFLiteDelegate.h" //! Add cpp header to use QNN delegate
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
 #include "tflite/model_builder.h"
 #include "tflite/core/interpreter_builder.h"
@@ -54,14 +54,25 @@ int main(int argc, char *argv[])
     util::timer_start("Apply Delegate"); 
 
     // Create QNN Delegate options structure.
+    TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
 
     // Set the mandatory backend_type option for QNN Delegate. 
     // All other options have default values.
-    // 1. Qualcomm Hexagon Tensor Processor (HTP) backend
-    // 2. GPU backend 
-    // 3. Hexagon DSP backend 
+    // options.backend_type = kHtpBackend; // 1. Qualcomm Hexagon Tensor Processor (HTP) backend
+    options.backend_type = kGpuBackend; // 2. GPU backend 
+    // options.backend_type = kDspBackend; // 3. Hexagon DSP backend 
 
-
+    TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
+    bool delegate_applied = false;
+    
+    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
+    {
+        delegate_applied = true;
+    }
+    else
+    {
+        std::cerr << "Failed to apply QNN delegate" << std::endl;
+    }
     util::timer_stop("Apply Delegate");
 
     /* Allocate Tensor */
@@ -152,6 +163,9 @@ int main(int argc, char *argv[])
     std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */ //! Change this to dellocate qnn delegate
-
+    if (qnn_delegate)
+    {
+        TfLiteQnnDelegateDelete(qnn_delegate);
+    }
     return 0;
 }
