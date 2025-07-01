@@ -1,29 +1,27 @@
 #!/bin/bash
 cd ..
 source .env
-GPU_DELEGATE_PATH=${TENSORFLOW_PATH}/bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so
+GPU_DELEGATE_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/delegates/gpu/libtensorflowlite_gpu_delegate.so
 
 ########## Build ##########
-cd ${TENSORFLOW_PATH}
+cd ${LITERT_PATH}
 
 echo "[INFO] Build gpu delegate .so .."
-echo "[INFO] Path: ${GPU_DELEGATE_PATH}"
+echo "[INFO] Path: ${GPU_DELEGATE_LIB_PATH}"
 
-cd ${TENSORFLOW_PATH}
+cd ${LITERT_PATH}
 pwd
 
 # Release mode
-bazel build -c opt //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
+bazel build -c opt //tflite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
     --copt=-Os \
-    --copt=-fPIC
+    --copt=-fPIC \
+    --linkopt=-s
+bazel shutdown
 
-# Debug mode
-# bazel build -c dbg dbg //tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
-#     --copt=-Os \
-#     --copt=-fPIC 
 
 ########## Make symlink ##########
-ln -sf ${GPU_DELEGATE_PATH} ${ROOT_PATH}/lib/libtensorflowlite_gpu_delegate.so
+ln -sf ${GPU_DELEGATE_LIB_PATH} ${ROOT_PATH}/lib/libtensorflowlite_gpu_delegate.so
 
 cd ${ROOT_PATH}/scripts
 pwd

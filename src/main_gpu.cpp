@@ -1,13 +1,14 @@
-// xnn-delegate-main
+// gpu-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <algorithm>
 #include <numeric>
 
-#include "opencv2/opencv.hpp" //opencv
+#include <opencv2/opencv.hpp> //opencv
 
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "tflite/delegates/gpu/delegate.h"             // for gpu delegate
 #include "tflite/model_builder.h"
 #include "tflite/core/interpreter_builder.h"
 #include "tflite/interpreter.h"
@@ -15,9 +16,10 @@
 #include "tflite/model.h"
 #include "util.hpp"
 
+
 int main(int argc, char *argv[])
 {
-    std::cout << "====== main_cpu ====" << std::endl;
+    std::cout << "====== main_gpu ====" << std::endl;
 
     if (argc != 4)
     {
@@ -48,22 +50,22 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-
-    /* Apply XNNPACK delegate */
+    /* Apply GPU Delegate */
     util::timer_start("Apply Delegate");
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
+    gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
+
+    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
     }
     else
     {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
+        std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
     util::timer_stop("Apply Delegate");
-
 
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor");
@@ -73,7 +75,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     util::timer_stop("Allocate Tensor");
-
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
@@ -87,7 +88,6 @@ int main(int argc, char *argv[])
     /* Preprocessing */
     util::timer_start("E2E Total(Pre+Inf+Post)");
     util::timer_start("Preprocessing");
-
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     int input_height = input_tensor->dims->data[1];
@@ -114,14 +114,8 @@ int main(int argc, char *argv[])
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
-        /* Deallocate delegate */
-        if (xnn_delegate)
-        {
-            TfLiteXNNPackDelegateDelete(xnn_delegate);
-        }
         return 1;
     }
-
     util::timer_stop("Inference");
 
     /* PostProcessing */
@@ -160,9 +154,9 @@ int main(int argc, char *argv[])
     std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
-    if (xnn_delegate)
+    if (gpu_delegate)
     {
-        TfLiteXNNPackDelegateDelete(xnn_delegate);
+        TfLiteGpuDelegateV2Delete(gpu_delegate);
     }
     return 0;
 }

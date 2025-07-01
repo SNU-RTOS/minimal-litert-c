@@ -3,11 +3,11 @@
 #include <vector>
 #include <cstdlib>
 
-#include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/model_builder.h"
+#include "tflite/interpreter_builder.h"
+#include "tflite/kernels/register.h"
+#include "tflite/interpreter.h"
+#include "tflite/model_builder.h"
+#include "tflite/delegates/xnnpack/xnnpack_delegate.h"
 
 #define TFLITE_MINIMAL_CHECK(x)                                     \
     if (!(x))                                                       \
@@ -18,7 +18,8 @@
 
 int main(int argc, char *argv[])
 {
-    setenv("XNNPACK_FORCE_NO_SVE", "1", 1);
+    printf("====== verify_cpu ====\n");
+    setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
     if (argc != 2)
     {
         fprintf(stderr, "Usage: %s <tflite model>\n", argv[0]);

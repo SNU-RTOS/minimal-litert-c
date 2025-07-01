@@ -3,11 +3,12 @@
 #include <vector>
 #include <cstdlib>
 
-#include "tensorflow/lite/core/interpreter_builder.h"
-#include "tensorflow/lite/delegates/gpu/delegate.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/model_builder.h"
+#include "tflite/interpreter_builder.h"
+#include "tflite/kernels/register.h"
+#include "tflite/interpreter.h"
+#include "tflite/model_builder.h"
+#include "TFLiteDelegate/QnnTFLiteDelegate.h" // for QNN delegate
+
 
 #define TFLITE_MINIMAL_CHECK(x)                                     \
     if (!(x))                                                       \
@@ -18,6 +19,7 @@
 
 int main(int argc, char *argv[])
 {
+    printf("====== verify_qnn ====\n");
     setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
     if (argc != 2)
     {
@@ -37,14 +39,19 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     TFLITE_MINIMAL_CHECK(interpreter != nullptr);
 
-    // Apply GPU delegate (OpenCL)
-    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
-    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
+    // Create QNN Delegate options structure.
+    TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
+
+    // Set the mandatory backend_type option. All other options have default values.
+    options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
+    // options.backend_type = kGpuBackend; // GPU backend 
+    // options.backend_type = kDspBackend; //Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
+    TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
     bool delegate_applied = false;
 
-    if (gpu_delegate)
+    if (qnn_delegate)
     {
-        if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
+        if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
         }
@@ -57,7 +64,7 @@ int main(int argc, char *argv[])
     printf("📤 Output tensor count : %zu\n", interpreter->outputs().size());
     printf("📦 Total tensor count  : %ld\n", interpreter->tensors_size());
     printf("🔧 Node (op) count     : %zu\n", interpreter->nodes_size());
-    printf("🧩 GPU Delegate applied: %s\n", delegate_applied ? "Yes ✅" : "No ❌");
+    printf("🧩 QNN Delegate applied: %s\n", delegate_applied ? "Yes ✅" : "No ❌");
 
     if (interpreter->Invoke() == kTfLiteOk)
     {
@@ -68,6 +75,6 @@ int main(int argc, char *argv[])
         printf("❌ Inference failed.\n");
     }
 
-    TfLiteGpuDelegateV2Delete(gpu_delegate);
+    TfLiteQnnDelegateDelete(qnn_delegate);
     return 0;
 }

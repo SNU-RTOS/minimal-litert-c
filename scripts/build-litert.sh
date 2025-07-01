@@ -1,32 +1,42 @@
 #!/bin/bash
+
+# ──────────────────────────────────────────────────────────────────────────────
 cd ..
 source .env
-LITERT_PATH=${TENSORFLOW_PATH}/bazel-bin/tensorflow/lite/libtensorflowlite.so
-FLATBUFFER_PATH=${TENSORFLOW_PATH}/bazel-tensorflow/external/flatbuffers/include/flatbuffers
+
+# ── Build Configuration ───────────────────────────────────────────────────────
+FLATBUFFER_PATH=${LITERT_PATH}/bazel-LiteRT/external/flatbuffers/include/flatbuffers
+TENSORFLOW_PATH=${LITERT_PATH}/bazel-LiteRT/external/org_tensorflow/tensorflow
+
+LITERT_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/libtensorflowlite.so
+
+LITERT_INC_PATH=${LITERT_PATH}/tflite
 
 ########## Build ##########
-cd ${TENSORFLOW_PATH}
+cd ${LITERT_PATH}
 
 echo "[INFO] Build LiteRT .so .."
-echo "[INFO] Path: ${LITERT_PATH}"
+echo "[INFO] Path: ${LITERT_LIB_PATH}"
 
-cd ${TENSORFLOW_PATH}
+cd ${LITERT_PATH}
 pwd
 
-# Release mode
-bazel build -c opt //tensorflow/lite:tensorflowlite \
+# Release mode (Note: -Wno-incompatible-pointer-types could cause undefined behavior)
+bazel build -c opt //tflite:tensorflowlite \
     --copt=-Os \
-    --copt=-fPIC 
-
-# Debug mode
-# bazel build -c dbg //tensorflow/lite:tensorflowlite \
-#     --copt=-Os \
-#     --copt=-fPIC 
+    --copt=-fPIC \
+    --copt=-Wno-incompatible-pointer-types \
+    --linkopt=-s
 
 ########## Make symlink ##########
-ln -sf ${LITERT_PATH} ${ROOT_PATH}/lib/libtensorflowlite.so
-ln -sf ${FLATBUFFER_PATH} ${ROOT_PATH}/inc/
-ln -sf ${TENSORFLOW_PATH}/tensorflow ${ROOT_PATH}/inc/ 
+ln -sf ${LITERT_LIB_PATH} ${ROOT_PATH}/lib/libtensorflowlite.so
+ln -sf ${LITERT_INC_PATH} ${ROOT_PATH}/inc
+ln -sf ${FLATBUFFER_PATH} ${ROOT_PATH}/inc
+ln -sf ${TENSORFLOW_PATH} ${ROOT_PATH}/inc
 
 cd ${ROOT_PATH}/scripts
 pwd
+
+
+
+
