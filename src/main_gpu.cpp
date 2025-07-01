@@ -51,20 +51,8 @@ int main(int argc, char *argv[])
     util::timer_stop("Build Interpreter");
 
     /* Apply GPU Delegate */ //! Change this to use gpu delegate
-    
-    /*
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
-    bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
-    {
-        delegate_applied = true;
-    }
-    else
-    {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
-    }
-    */
+    util::timer_start("Apply Delegate");
+
     util::timer_stop("Apply Delegate");
 
     /* Allocate Tensor */
