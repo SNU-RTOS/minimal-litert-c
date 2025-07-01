@@ -1,10 +1,16 @@
 #!/bin/bash
+
+# ──────────────────────────────────────────────────────────────────────────────
 cd ..
 source .env
-# LITERT_LIB_PATH=${TENSORFLOW_PATH}/bazel-bin/tensorflow/lite/libtensorflowlite.so
-LITERT_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/libtensorflowlite.so
+
+# ── Build Configuration ───────────────────────────────────────────────────────
 FLATBUFFER_PATH=${LITERT_PATH}/bazel-LiteRT/external/flatbuffers/include/flatbuffers
 TENSORFLOW_PATH=${LITERT_PATH}/bazel-LiteRT/external/org_tensorflow/tensorflow
+
+LITERT_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/libtensorflowlite.so
+
+LITERT_INC_PATH=${LITERT_PATH}/tflite
 
 ########## Build ##########
 cd ${LITERT_PATH}
@@ -16,17 +22,17 @@ cd ${LITERT_PATH}
 pwd
 
 # Release mode (Note: -Wno-incompatible-pointer-types could cause undefined behavior)
-# bazel build -c opt //tflite:tensorflowlite \
-#     --copt=-Os \
-#     --copt=-fPIC \
-#     --copt=-Wno-incompatible-pointer-types \
-#     --linkopt=-s
+bazel build -c opt //tflite:tensorflowlite \
+    --copt=-Os \
+    --copt=-fPIC \
+    --copt=-Wno-incompatible-pointer-types \
+    --linkopt=-s
 
 ########## Make symlink ##########
 ln -sf ${LITERT_LIB_PATH} ${ROOT_PATH}/lib/libtensorflowlite.so
-ln -sf ${FLATBUFFER_PATH} ${ROOT_PATH}/inc/
-ln -sf ${LITERT_PATH}/tflite ${ROOT_PATH}/inc 
-ln -sf ${TENSORFLOW_PATH} ${ROOT_PATH}/inc/
+ln -sf ${LITERT_INC_PATH} ${ROOT_PATH}/inc
+ln -sf ${FLATBUFFER_PATH} ${ROOT_PATH}/inc
+ln -sf ${TENSORFLOW_PATH} ${ROOT_PATH}/inc
 
 cd ${ROOT_PATH}/scripts
 pwd
