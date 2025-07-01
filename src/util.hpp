@@ -13,9 +13,9 @@
 #include <jsoncpp/json/json.h>
 #include <opencv2/opencv.hpp> //opencv
 
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
+#include "tflite/interpreter.h"
+#include "tflite/kernels/register.h"
+#include "tflite/model.h"
 
 namespace util
 {

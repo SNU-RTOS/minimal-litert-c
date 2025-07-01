@@ -19,6 +19,7 @@
 
 int main(int argc, char *argv[])
 {
+    printf("====== verify_qnn ====\n");
     setenv("TF_CPP_MIN_LOG_LEVEL", "0", 1);
     if (argc != 2)
     {
@@ -42,8 +43,8 @@ int main(int argc, char *argv[])
     TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
 
     // Set the mandatory backend_type option. All other options have default values.
-    // options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
-    options.backend_type = kGpuBackend; // GPU backend 
+    options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
+    // options.backend_type = kGpuBackend; // GPU backend 
     // options.backend_type = kDspBackend; //Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
     TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
     bool delegate_applied = false;

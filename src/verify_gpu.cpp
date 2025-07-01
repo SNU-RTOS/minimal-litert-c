@@ -16,32 +16,6 @@
         exit(1);                                                    \
     }
 
-void PrintTopKPredictions(const TfLiteTensor* output_tensor, int top_k = 5)
-{
-    const float* scores = output_tensor->data.f;
-    int num_classes = output_tensor->dims->data[output_tensor->dims->size - 1];
-
-    // Pair of <score, index>
-    std::vector<std::pair<float, int>> score_index_pairs;
-    for (int i = 0; i < num_classes; ++i)
-    {
-        score_index_pairs.emplace_back(scores[i], i);
-    }
-
-    // Sort descending by score
-    std::partial_sort(
-        score_index_pairs.begin(), score_index_pairs.begin() + top_k, score_index_pairs.end(),
-        [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
-            return a.first > b.first;
-        });
-
-    printf("\n🔝 Top %d Predictions:\n", top_k);
-    for (int i = 0; i < top_k && i < num_classes; ++i)
-    {
-        printf("  #%d: Class %d => Score: %.6f\n", i + 1, score_index_pairs[i].second, score_index_pairs[i].first);
-    }
-}
-
 int main(int argc, char *argv[])
 {
     printf("====== verify_gpu ====\n");
