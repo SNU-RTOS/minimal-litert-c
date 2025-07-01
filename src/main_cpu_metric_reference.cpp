@@ -48,7 +48,6 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter"); //! Metrics (timer_stop)
 
-
     /* Apply XNNPACK delegate */
     util::timer_start("Apply Delegate"); //! Metrics (timer_start)
     TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
@@ -64,7 +63,6 @@ int main(int argc, char *argv[])
     }
     util::timer_stop("Apply Delegate"); //! Metrics (timer_stop)
 
-
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor"); //! Metrics (timer_start)
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
@@ -73,7 +71,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     util::timer_stop("Allocate Tensor"); //! Metrics (timer_stop)
-
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
@@ -86,7 +83,7 @@ int main(int argc, char *argv[])
 
     /* Preprocessing */
     util::timer_start("E2E Total(Pre+Inf+Post)"); //! Metrics (timer_start)
-    util::timer_start("Preprocessing"); //! Metrics (timer_start)
+    util::timer_start("Preprocessing");           //! Metrics (timer_start)
 
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
@@ -139,7 +136,7 @@ int main(int argc, char *argv[])
     std::vector<float> probs(num_classes);
     util::softmax(logits, probs, num_classes);
 
-    util::timer_stop("Postprocessing"); //! Metrics  (timer_stop)
+    util::timer_stop("Postprocessing");          //! Metrics  (timer_stop)
     util::timer_stop("E2E Total(Pre+Inf+Post)"); //! Metrics (timer_stop)
 
     /* Print Results */
@@ -157,7 +154,7 @@ int main(int argc, char *argv[])
 
     /* Print Timers */
     util::print_all_timers(); //! Metrics (print timers)
-    std::cout << "========================" << std::endl; 
+    std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
     if (xnn_delegate)
