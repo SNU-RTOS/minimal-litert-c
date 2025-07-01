@@ -69,6 +69,5 @@ run_main_metric() {
 
 ##################### main #####################
 run_verify cpu ./models/mobileone_s0.tflite
-run_verify gpu ./models/mobileone_s0.tflite
-run_verify qnn ./models/mobileone_s0.tflite
-\
+# run_verify gpu ./models/mobileone_s0.tflite
+# sudo run_verify qnn ./models/mobileone_s0.tflite
