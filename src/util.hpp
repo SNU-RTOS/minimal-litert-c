@@ -13,9 +13,9 @@
 #include <jsoncpp/json/json.h>
 #include <opencv2/opencv.hpp> //opencv
 
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
+#include "tflite/interpreter.h"
+#include "tflite/kernels/register.h"
+#include "tflite/model.h"
 
 namespace util
 {
@@ -54,7 +54,7 @@ namespace util
     void softmax(const float *logits, std::vector<float> &probs, int size);
 
     // Preprocess image to match model input size
-    cv::Mat preprocess_image(cv::Mat &image, int target_width, int target_height);
+    cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_width);
 
 } // namespace util
 
