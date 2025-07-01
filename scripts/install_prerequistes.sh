@@ -8,6 +8,7 @@ sudo apt install -y \
     python3 \
     python3-pip \
     build-essential \
+    clang \
     cmake \
     unzip \
     pkg-config

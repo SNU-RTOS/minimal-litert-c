@@ -48,9 +48,9 @@ This project demonstrates how to build and run TensorFlow Lite models using the 
 ## Prerequisites
 
 ### System Requirements
-- Linux (Ubuntu/Debian recommended)
-- GCC with C++17 support
-- CMake
+- Ubuntu 20.04/22.04/24.04 
+- Clang  
+- Bazel
 - Git
 
 ### Dependencies
@@ -60,7 +60,7 @@ Run the prerequisite installation script:
 ```
 
 This installs:
-- Build tools (gcc, cmake, make)
+- Build tools
 - OpenCV development libraries
 - JSON libraries (jsoncpp)
 - Python development tools
