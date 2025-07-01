@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
     const std::string label_path = argv[3];
 
     /* Load model */
+    util::timer_start("Load Model");
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!model)
@@ -37,14 +38,19 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
+    util::timer_stop("Load Model");
 
     /* Build interpreter */
+    util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
+    util::timer_stop("Build Interpreter");
+
 
     /* Apply XNNPACK delegate */
+    util::timer_start("Apply Delegate");
     TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
     TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
     bool delegate_applied = false;
@@ -56,22 +62,32 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
+    util::timer_stop("Apply Delegate");
+
 
     /* Allocate Tensor */
+    util::timer_start("Allocate Tensor");
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
+    util::timer_stop("Allocate Tensor");
+
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     /* Load input image */
+    util::timer_start("Load Input Image");
     cv::Mat origin_image = cv::imread(image_path);
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
+    util::timer_stop("Load Input Image");
 
     /* Preprocessing */
+    util::timer_start("E2E Total(Pre+Inf+Post)");
+    util::timer_start("Preprocessing");
+
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     int input_height = input_tensor->dims->data[1];
@@ -90,14 +106,27 @@ int main(int argc, char *argv[])
     std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
                 preprocessed_image.total() * preprocessed_image.elemSize());
 
+    util::timer_stop("Preprocessing");
+
     /* Inference */
+    util::timer_start("Inference");
+
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
+        /* Deallocate delegate */
+        if (xnn_delegate)
+        {
+            TfLiteXNNPackDelegateDelete(xnn_delegate);
+        }
         return 1;
     }
 
+    util::timer_stop("Inference");
+
     /* PostProcessing */
+    util::timer_start("Postprocessing");
+
     // Get output tensor
     TfLiteTensor *output_tensor = interpreter->output_tensor(0);
     std::cout << "[INFO] Output shape : ";
@@ -109,6 +138,9 @@ int main(int argc, char *argv[])
 
     std::vector<float> probs(num_classes);
     util::softmax(logits, probs, num_classes);
+
+    util::timer_stop("Postprocessing");
+    util::timer_stop("E2E Total(Pre+Inf+Post)");
 
     /* Print Results */
     // Load class label mapping
@@ -122,6 +154,10 @@ int main(int argc, char *argv[])
         std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
+
+    /* Print Timers */
+    util::print_all_timers();
+    std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
     if (xnn_delegate)
