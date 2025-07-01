@@ -8,6 +8,7 @@ sudo apt install -y \
     python3 \
     python3-pip \
     build-essential \
+    clang \
     cmake \
     unzip \
     pkg-config
@@ -72,7 +73,6 @@ source ~/.bashrc
 # git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
 
 # # update .zshrc
-# # 7. plugins 라인 수정 (기존에 있으면 교체)
 # if grep -q '^plugins=' ~/.zshrc; then
 #   sed -i 's/^plugins=.*/plugins=(git zsh-syntax-highlighting zsh-autosuggestions)/' ~/.zshrc
 # else
@@ -94,26 +94,3 @@ source ~/.bashrc
 # # echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init --path)"\n  eval "$(pyenv init -)"\nfi' >> ~/.zshrc
 # # source ~/.zshrc
 ##################
-
-
-# sudo apt install libopencv-dev -y
-# wget -O opencv.zip https://github.com/opencv/opencv/archive/4.11.0.zip
-# wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.11.0.zip
-# unzip opencv.zip
-# unzip opencv_contrib.zip
-# mkdir opencv_build
-# cd opencv_build
-# cmake -DCMAKE_BUILD_TYPE=Release \
-#     -DCMAKE_INSTALL_PREFIX=/usr/src \
-#     -DWITH_OPENCL=OFF \
-#     -DWITH_OPENCL_SVM=OFF \
-#     -DWITH_OPENCL_D3D11_NV=OFF \
-#     -DWITH_OPENGL=OFF \
-#     -DBUILD_opencv_world=ON \
-#     -DBUILD_TESTS=OFF \
-#     -DBUILD_PERF_TESTS=OFF \
-#     -DWITH_TBB=OFF \
-#     -DOPENCV_EXTRA_MODULES_PATH=../opencv_contrib-4.11.0/modules/ \
-#     ../opencv-4.11.0/
-
-# make -j4
