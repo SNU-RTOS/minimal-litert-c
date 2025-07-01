@@ -54,7 +54,7 @@ namespace util
     void softmax(const float *logits, std::vector<float> &probs, int size);
 
     // Preprocess image to match model input size
-    cv::Mat preprocess_image(cv::Mat &image, int target_width, int target_height);
+    cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_width);
 
 } // namespace util
 
