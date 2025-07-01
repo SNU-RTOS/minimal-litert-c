@@ -1,4 +1,4 @@
-// qnn-delegate-main
+// gpu-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -7,8 +7,8 @@
 
 #include <opencv2/opencv.hpp> //opencv
 
-#include "TFLiteDelegate/QnnTFLiteDelegate.h" // for QNN delegate
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "tflite/delegates/gpu/delegate.h"             //! Add cpp header file to use gpu delegate
 #include "tflite/model_builder.h"
 #include "tflite/core/interpreter_builder.h"
 #include "tflite/interpreter.h"
@@ -19,7 +19,7 @@
 
 int main(int argc, char *argv[])
 {
-    std::cout << "====== main_qnn ====" << std::endl;
+    std::cout << "====== main_gpu ====" << std::endl;
 
     if (argc != 4)
     {
@@ -50,24 +50,20 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-    /* Apply QNN Delegate */
+    /* Apply GPU Delegate */ //! Change this to use gpu delegate
     util::timer_start("Apply Delegate");
-    // Create QNN Delegate options structure.
-    TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
-    // Set the mandatory backend_type option. All other options have default values.
-    // options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
-    options.backend_type = kGpuBackend; // GPU backend 
-    // options.backend_type = kDspBackend; // Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
-    TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
+    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
+    gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
+
+    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
     bool delegate_applied = false;
-    
-    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
+    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
     }
     else
     {
-        std::cerr << "Failed to apply QNN delegate" << std::endl;
+        std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
     util::timer_stop("Apply Delegate");
 
@@ -104,8 +100,7 @@ int main(int argc, char *argv[])
 
     // Preprocess input data
     cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
-    std::cout << "[DEBUG] Input tensor type: " << input_tensor->type << std::endl;
-    
+
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
     std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
@@ -158,10 +153,10 @@ int main(int argc, char *argv[])
     util::print_all_timers();
     std::cout << "========================" << std::endl;
 
-    /* Deallocate delegate */
-    if (qnn_delegate)
+    /* Deallocate delegate */ //! Change this to dellocate gpu delegate
+    if (gpu_delegate)
     {
-        TfLiteQnnDelegateDelete(qnn_delegate);
+        TfLiteGpuDelegateV2Delete(gpu_delegate);
     }
     return 0;
 }

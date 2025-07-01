@@ -8,7 +8,7 @@
 #include <opencv2/opencv.hpp> //opencv
 
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
-#include "tflite/delegates/gpu/delegate.h"             // for gpu delegate
+//! Add cpp header file to use gpu delegate
 #include "tflite/model_builder.h"
 #include "tflite/core/interpreter_builder.h"
 #include "tflite/interpreter.h"
@@ -50,21 +50,21 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-    /* Apply GPU Delegate */
-    util::timer_start("Apply Delegate");
-    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
-    gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
-
-    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
+    /* Apply GPU Delegate */ //! Change this to use gpu delegate
+    
+    /*
+    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
+    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
+    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
     }
     else
     {
-        std::cerr << "Failed to apply GPU delegate" << std::endl;
+        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
+    */
     util::timer_stop("Apply Delegate");
 
     /* Allocate Tensor */
@@ -153,10 +153,12 @@ int main(int argc, char *argv[])
     util::print_all_timers();
     std::cout << "========================" << std::endl;
 
-    /* Deallocate delegate */
-    if (gpu_delegate)
+    /* Deallocate delegate */ //! Change this to dellocate gpu delegate
+    /*
+    if (xnn_delegate)
     {
-        TfLiteGpuDelegateV2Delete(gpu_delegate);
+        TfLiteXNNPackDelegateDelete(xnn_delegate);
     }
+    */
     return 0;
 }
