@@ -10,7 +10,7 @@
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
 #include "tflite/delegates/gpu/delegate.h"             //! Add cpp header file to use gpu delegate
 #include "tflite/model_builder.h"
-#include "tflite/core/interpreter_builder.h"
+#include "tflite/interpreter_builder.h"
 #include "tflite/interpreter.h"
 #include "tflite/kernels/register.h"
 #include "tflite/model.h"
