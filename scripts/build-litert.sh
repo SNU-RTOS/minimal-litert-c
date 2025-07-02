@@ -5,8 +5,8 @@ cd ..
 source .env
 
 # ── Build Configuration ───────────────────────────────────────────────────────
-FLATBUFFER_PATH=${LITERT_PATH}/bazel-LiteRT/external/flatbuffers/include/flatbuffers
-TENSORFLOW_PATH=${LITERT_PATH}/bazel-LiteRT/external/org_tensorflow/tensorflow
+FLATBUFFER_PATH=${LITERT_PATH}/bazel-litert/external/flatbuffers/include/flatbuffers
+TENSORFLOW_PATH=${LITERT_PATH}/bazel-litert/external/org_tensorflow/tensorflow
 
 LITERT_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/libtensorflowlite.so
 
