@@ -37,7 +37,7 @@ pwd
 
 ## Clone LiteRT
 echo "[INFO] Installing LiteRT"
-if [ ! -d "./LiteRT" ]; then
+if [ ! -d "./litert" ]; then
     git clone https://github.com/google-ai-edge/litert.git
     cd ${LITERT_PATH}
     ./configure
