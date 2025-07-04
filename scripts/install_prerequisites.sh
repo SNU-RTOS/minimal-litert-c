@@ -8,10 +8,14 @@ sudo apt install -y \
     python3 \
     python3-pip \
     build-essential \
-    clang \
     cmake \
     unzip \
     pkg-config
+
+# Install clang version 18
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 18
 
 # Install pyenv prerequisites
 sudo apt install -y --no-install-recommends \
