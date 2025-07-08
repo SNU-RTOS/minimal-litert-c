@@ -46,7 +46,8 @@ run_main() {
 
 
 ##################### main #####################
-# run_main cpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
-run_main cpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
-# run_main gpu ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
-# run_main qnn ./models/mobileone_s0.tflite ./images/dog.jpg ./labels.json
+# run_verify cpu ./models/mobilenetv3_small.tflite
+# run_verify gpu ./models/mobilenetv3_small.tflite
+run_main cpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
+# run_main gpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
+# run_main qnn ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
