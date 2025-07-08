@@ -32,36 +32,26 @@ int main(int argc, char *argv[])
     /* Load model */
     util::timer_start("Load Model"); //! Metrics (timer_start)
 
-
-
     util::timer_stop("Load Model"); //! Metrics (timer_stop)
 
     /* Build interpreter */
     util::timer_start("Build Interpreter"); //! Metrics (timer_start)
-
-
 
     util::timer_stop("Build Interpreter"); //! Metrics (timer_stop)
 
     /* Apply XNNPACK delegate */
     util::timer_start("Apply Delegate"); //! Metrics (timer_start)
 
-
-
     util::timer_stop("Apply Delegate"); //! Metrics (timer_stop)
 
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor"); //! Metrics (timer_start)
-
-
 
     util::timer_stop("Allocate Tensor"); //! Metrics (timer_stop)
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     /* Load input image */
     util::timer_start("Load Input Image"); //! Metrics (timer_start)
-
-
 
     util::timer_stop("Load Input Image"); //! Metrics (timer_stop)
 
@@ -79,18 +69,14 @@ int main(int argc, char *argv[])
     // Copy HWC float32 cv::Mat to TFLite input tensor
     util::timer_stop("Preprocessing"); //! Metrics (timer_stop)
 
-
     /* Inference */
     util::timer_start("Inference"); //! Metrics (timer_start)
-
-
 
     util::timer_stop("Inference"); //! Metrics (timer_stop)
 
     /* PostProcessing */
     util::timer_start("Postprocessing"); //! Metrics (timer_start)
 
-    
     // Get output tensor
 
     util::timer_stop("Postprocessing");          //! Metrics  (timer_stop)
