@@ -48,7 +48,7 @@ This project demonstrates how to build and run TensorFlow Lite models using the 
 ## Prerequisites
 
 ### System Requirements
-- Ubuntu 20.04/22.04/24.04 
+- Ubuntu 20.04 and over
 - Clang  
 - Bazel
 - Git
@@ -90,6 +90,8 @@ The setup script automatically:
 ## Usage
 
 ### Quick Start
+Ensure the prerequisites are successfully installed.
+
 ```bash
 # Build and run CPU inference example
 ./build_and_run.sh
