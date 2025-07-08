@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
     const std::string label_path = argv[3];
 
     /* Load model */
+    util::timer_start("Load Model"); //! Metrics (timer_start)
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!model)
@@ -37,14 +38,18 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
+    util::timer_stop("Load Model"); //! Metrics (timer_stop)
 
     /* Build interpreter */
+    util::timer_start("Build Interpreter"); //! Metrics (timer_start)
     tflite::ops::builtin::BuiltinOpResolver resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
+    util::timer_stop("Build Interpreter"); //! Metrics (timer_stop)
 
     /* Apply XNNPACK delegate */
+    util::timer_start("Apply Delegate"); //! Metrics (timer_start)
     TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
     TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
     bool delegate_applied = false;
@@ -56,22 +61,30 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
+    util::timer_stop("Apply Delegate"); //! Metrics (timer_stop)
 
     /* Allocate Tensor */
+    util::timer_start("Allocate Tensor"); //! Metrics (timer_start)
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
+    util::timer_stop("Allocate Tensor"); //! Metrics (timer_stop)
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     /* Load input image */
+    util::timer_start("Load Input Image"); //! Metrics (timer_start)
     cv::Mat origin_image = cv::imread(image_path);
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
+    util::timer_stop("Load Input Image"); //! Metrics (timer_stop)
 
     /* Preprocessing */
+    util::timer_start("E2E Total(Pre+Inf+Post)"); //! Metrics (timer_start)
+    util::timer_start("Preprocessing");           //! Metrics (timer_start)
+
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     int input_height = input_tensor->dims->data[1];
@@ -90,14 +103,27 @@ int main(int argc, char *argv[])
     std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
                 preprocessed_image.total() * preprocessed_image.elemSize());
 
+    util::timer_stop("Preprocessing"); //! Metrics (timer_stop)
+
     /* Inference */
+    util::timer_start("Inference"); //! Metrics (timer_start)
+
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
+        /* Deallocate delegate */
+        if (xnn_delegate)
+        {
+            TfLiteXNNPackDelegateDelete(xnn_delegate);
+        }
         return 1;
     }
 
+    util::timer_stop("Inference"); //! Metrics (timer_stop)
+
     /* PostProcessing */
+    util::timer_start("Postprocessing"); //! Metrics (timer_start)
+
     // Get output tensor
     TfLiteTensor *output_tensor = interpreter->output_tensor(0);
     std::cout << "[INFO] Output shape : ";
@@ -109,6 +135,9 @@ int main(int argc, char *argv[])
 
     std::vector<float> probs(num_classes);
     util::softmax(logits, probs, num_classes);
+
+    util::timer_stop("Postprocessing");          //! Metrics  (timer_stop)
+    util::timer_stop("E2E Total(Pre+Inf+Post)"); //! Metrics (timer_stop)
 
     /* Print Results */
     // Load class label mapping
@@ -122,6 +151,10 @@ int main(int argc, char *argv[])
         std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
+
+    /* Print Timers */
+    util::print_all_timers(); //! Metrics (print timers)
+    std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
     if (xnn_delegate)
