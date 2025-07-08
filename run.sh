@@ -45,29 +45,9 @@ run_main() {
 }
 
 
-run_main_metric() {
-  local mode="$1"          # Example: cpu
-  local model="$2"         # Example: ./models/resnet34.tflite
-  local image="$3"         # Example: ./images/dog.jpg
-  local label="$4"         # Example: ./labels.json
-
-  local model_base
-  model_base=$(basename "${model%.*}")
-  local logfile="output_main_metric_${mode}_${model_base}.log"
-
-  (
-    exec > >(tee "$logfile") 2>&1
-
-    echo "================================"
-    echo "[INFO] Build main_${mode}_metric"
-    make -f Makefile_main_${mode}_metric -j4
-
-    echo "[INFO] Run main_${mode}_metric"
-    ./output/main_${mode}_metric "$model" "$image" "$label"
-  )
-}
-
 ##################### main #####################
-run_verify cpu ./models/mobileone_s0.tflite
-# run_verify gpu ./models/mobileone_s0.tflite
-# sudo run_verify qnn ./models/mobileone_s0.tflite
+run_verify cpu ./models/mobilenetv3_small.tflite
+run_verify gpu ./models/mobilenetv3_small.tflite
+# run_main cpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
+# run_main gpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
+# run_main qnn ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
