@@ -1,18 +1,45 @@
-__pycache__
-build
-obj
-output
-*.txt
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Build directories
+build/
+obj/
+output/
+
+# Log files and temporary files
 *.log
-external
+*.txt
+
+# Dependencies and external libraries
+external/
 lib/*
 inc/*
+utils/
+
+# Model files (exclude specific models)
 models/*
+!models/mobileone_s0*
+!models/mobilenetv3_small*
+
+
+# Backup directories
 backup/*
-!models/mobileone_s0.tflite
-!models/mobilenetv3_small.tflite
-.backup
-.vscode
+.backup/
+
+# IDE and environment files
+.vscode/
 .env
 .ws_pip
-utils
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

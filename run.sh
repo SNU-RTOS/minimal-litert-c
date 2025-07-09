@@ -40,14 +40,18 @@ run_main() {
     make -f Makefile_main_${mode} -j4
 
     echo "[INFO] Run main_${mode}"
-    ./output/main_${mode} "$model" "$image" "$label"
+    if [ ${mode} != "qnn" ]; then
+      ./output/main_${mode} "$model" "$image" "$label"
+    else
+      sudo ./output/main_${mode} "$model" "$image" "$label"
+    fi
   )
 }
 
 
 ##################### main #####################
-run_verify cpu ./models/mobilenetv3_small.tflite
-run_verify gpu ./models/mobilenetv3_small.tflite
+# run_verify cpu ./models/mobilenetv3_small.tflite
+# run_verify gpu ./models/mobilenetv3_small.tflite
 # run_main cpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
 # run_main gpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
-# run_main qnn ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
+run_main qnn ./models/mobileone_s0_full_int8.tflite ./images/dog.jpg ./labels.json
