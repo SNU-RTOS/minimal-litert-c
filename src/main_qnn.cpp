@@ -59,7 +59,6 @@ int main(int argc, char *argv[])
     // All other options have default values.
     // 1. Qualcomm Hexagon Tensor Processor (HTP) backend
     // 2. GPU backend 
-    // 3. Hexagon DSP backend 
 
 
     util::timer_stop("Apply Delegate");

@@ -55,22 +55,19 @@ int main(int argc, char *argv[])
 
     // Create QNN Delegate options structure.
     TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
-
-    // Set the mandatory backend_type option for QNN Delegate. 
-    // All other options have default values.
-    // options.backend_type = kHtpBackend; // 1. Qualcomm Hexagon Tensor Processor (HTP) backend
-    options.backend_type = kGpuBackend; // 2. GPU backend 
-    // options.backend_type = kDspBackend; // 3. Hexagon DSP backend 
+    // Set the mandatory backend_type option for QNN Delegate. All other options have default values.
+    // 1. Qualcomm Hexagon Tensor Processor (HTP) backend
+    options.backend_type = kHtpBackend; 
+    // 2. GPU backend 
+    // options.backend_type = kGpuBackend; 
 
     TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
+
     bool delegate_applied = false;
-    
-    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
-    {
+    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk) {
         delegate_applied = true;
     }
-    else
-    {
+    else {
         std::cerr << "Failed to apply QNN delegate" << std::endl;
     }
     util::timer_stop("Apply Delegate");

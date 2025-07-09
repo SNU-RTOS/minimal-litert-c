@@ -50,4 +50,4 @@ run_main() {
 # run_verify gpu ./models/mobilenetv3_small.tflite
 # run_main cpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
 # run_main gpu ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
-run_main qnn ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
+sudo run_main qnn ./models/mobilenetv3_small.tflite ./images/dog.jpg ./labels.json
