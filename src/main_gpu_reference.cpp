@@ -52,19 +52,20 @@ int main(int argc, char *argv[])
 
     /* Apply GPU Delegate */ //! Change this to use gpu delegate
     util::timer_start("Apply Delegate");
-    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
-    gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
 
+    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
+    gpu_opts.inference_preference 
+        = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
     TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
+
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
-    {
+    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk) {
         delegate_applied = true;
     }
-    else
-    {
+    else {
         std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
+
     util::timer_stop("Apply Delegate");
 
     /* Allocate Tensor */
