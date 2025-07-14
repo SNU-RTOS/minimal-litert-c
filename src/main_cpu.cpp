@@ -4,6 +4,8 @@
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <thread>
+#include <chrono>
 
 #include "opencv2/opencv.hpp" //opencv
 
@@ -14,6 +16,8 @@
 #include "tflite/kernels/register.h"
 #include "tflite/model.h"
 #include "util.hpp"
+
+void PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter);
 
 int main(int argc, char *argv[])
 {
@@ -40,6 +44,8 @@ int main(int argc, char *argv[])
     }
     util::timer_stop("Load Model");
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Sleep for 1 second to see the output before exit
+
     /* Build interpreter */
     util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
@@ -48,6 +54,10 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
+    /* Check the created execution plan */
+    std::vector<int> execution_plan = interpreter->execution_plan();
+    std::cout << "The model contains " << execution_plan.size() << " nodes." << std::endl;
+    PrintExecutionPlanOps(interpreter);
 
     /* Apply XNNPACK delegate */
     util::timer_start("Apply Delegate");
@@ -62,6 +72,11 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
+    /* Check the modified execution plan */
+    execution_plan = interpreter->execution_plan();
+    std::cout << "The model contains " << execution_plan.size() << " nodes." << std::endl;
+    PrintExecutionPlanOps(interpreter);
+
     util::timer_stop("Apply Delegate");
 
 
@@ -158,11 +173,63 @@ int main(int argc, char *argv[])
     /* Print Timers */
     util::print_all_timers();
     std::cout << "========================" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Sleep for 1 second to see the output before exit
 
     /* Deallocate delegate */
     if (xnn_delegate)
     {
         TfLiteXNNPackDelegateDelete(xnn_delegate);
     }
+
+
     return 0;
+}
+
+void PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter) {
+    std::cout << "The model contains " << interpreter->execution_plan().size() 
+            << " nodes in execution plan." << std::endl;
+
+    for (int node_index : interpreter->execution_plan()) {
+        const auto* node_and_reg = interpreter->node_and_registration(node_index);
+        if (!node_and_reg) {
+            std::cerr << "Failed to get node " << node_index << std::endl;
+            continue;
+        }
+
+        const TfLiteNode& node = node_and_reg->first;
+        const TfLiteRegistration& registration = node_and_reg->second;
+
+        std::cout << "Node " << node_index << ": ";
+
+        if (registration.builtin_code != tflite::BuiltinOperator_CUSTOM) {
+            std::cout << tflite::EnumNameBuiltinOperator(
+                static_cast<tflite::BuiltinOperator>(registration.builtin_code));
+        } else {
+            std::cout << "CUSTOM: " 
+                << (registration.custom_name ? registration.custom_name : "unknown");
+        }
+        std::cout << std::endl;
+    }
+
+    for (int node_index = 0; node_index < interpreter->nodes_size(); ++node_index) {
+        auto* node_and_reg = interpreter->node_and_registration(node_index);
+        if (!node_and_reg) continue;
+
+        const TfLiteNode& node = node_and_reg->first;
+        const TfLiteRegistration& reg = node_and_reg->second;
+
+        std::cout << "Node " << node_index << ": ";
+        if (reg.builtin_code != tflite::BuiltinOperator_CUSTOM) {
+            std::cout << tflite::EnumNameBuiltinOperator(
+                static_cast<tflite::BuiltinOperator>(reg.builtin_code));
+        } else {
+            std::cout << "CUSTOM: " << (reg.custom_name ? reg.custom_name : "unknown");
+        }
+
+        if (node.delegate != nullptr) {
+            std::cout << " [DELEGATED]";
+        }
+
+        std::cout << std::endl;
+    }
 }
