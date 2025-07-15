@@ -24,7 +24,7 @@ INCS := -Iinc \
 		-I/usr/include/opencv4
 
 # Library paths
-LIBS := -Llib \
+LIBS := -Llib 
 
 # Source files and object files
 SRCS := $(TARGET).cpp util.cpp
