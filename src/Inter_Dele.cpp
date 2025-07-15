@@ -1,13 +1,15 @@
-// xnn-delegate-main
+// gpu-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <memory>
 
-#include "opencv2/opencv.hpp" //opencv
+#include <opencv2/opencv.hpp> //opencv
 
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "tflite/delegates/gpu/delegate.h"             // for gpu delegate
 #include "tflite/model_builder.h"
 #include "tflite/interpreter_builder.h"
 #include "tflite/interpreter.h"
@@ -15,43 +17,40 @@
 #include "tflite/model.h"
 #include "util.hpp"
 
-void PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter) {
-    std::cout << "The model contains "
-              << interpreter->execution_plan().size()
-              << " nodes in execution plan." << std::endl;
+using namespace tflite;
 
-    for (int node_index : interpreter->execution_plan()) {
-        const auto* node_and_reg = interpreter->node_and_registration(node_index);
-        if (!node_and_reg) {
-            std::cerr << "Failed to get node " << node_index << std::endl;
-            continue;
-        }
+void PrintExecutionPlan(tflite::Interpreter* interpreter, const std::string& title) {
+    std::cout << "==== " << title << " ====" << std::endl;
 
+    for (int i = 0; i < interpreter->nodes_size(); ++i) {
+        auto node_and_reg = interpreter->node_and_registration(i);
         const TfLiteNode& node = node_and_reg->first;
-        const TfLiteRegistration& registration = node_and_reg->second;
+        const TfLiteRegistration& reg = node_and_reg->second;
 
-        std::cout << "Node " << node_index << ": ";
-
-        if (registration.builtin_code != tflite::BuiltinOperator_CUSTOM) {
-            std::cout << tflite::EnumNameBuiltinOperator(
-                             static_cast<tflite::BuiltinOperator>(registration.builtin_code));
+        std::string node_type;
+        if (reg.builtin_code != BuiltinOperator_CUSTOM) {
+            node_type = EnumNameBuiltinOperator(static_cast<BuiltinOperator>(reg.builtin_code));
         } else {
-            std::cout << "CUSTOM: "
-                      << (registration.custom_name ? registration.custom_name : "unknown");
+            node_type = reg.custom_name ? reg.custom_name : "CUSTOM";
         }
 
-        std::cout << std::endl;
+        // node.delegate로 확인
+        std::string delegate_info = (node.delegate != nullptr) ? " [DELEGATE]" : "";
+
+        std::cout << "Node " << i << ": " << node_type << delegate_info << std::endl;
     }
+
+    std::cout << std::endl;
 }
 
 
-int main(int argc, char *argv[])
-{
-    std::cout << "====== main_cpu ====" << std::endl;
 
-    if (argc != 4)
-    {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path> <label_json_path>" << std::endl;
+int main(int argc, char** argv) {
+    
+    std::cout << "====== Delegate ======" << std::endl;
+
+    if (argc != 4) {
+        std::cerr << "Usage: " << argv[0] << " <model.tflite> <image.jpg> <labels.json>" << std::endl;
         return 1;
     }
 
@@ -59,8 +58,7 @@ int main(int argc, char *argv[])
     const std::string image_path = argv[2];
     const std::string label_path = argv[3];
 
-    /* Load model */
-    util::timer_start("Load Model");
+    // Load model
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!model)
@@ -68,58 +66,49 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    util::timer_stop("Load Model");
 
-    /* Build interpreter */
-    util::timer_start("Build Interpreter");
+    // Create interpreter
     tflite::ops::builtin::BuiltinOpResolver resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
-    util::timer_stop("Build Interpreter");
+    if (!interpreter) {
+        std::cerr << "Failed to construct interpreter" << std::endl;
+        return 1;
+    }
 
-    PrintExecutionPlanOps(interpreter);
+    PrintExecutionPlan(interpreter.get(), "Execution Plan BEFORE Delegate");
 
-    /* Apply XNNPACK delegate */
-    util::timer_start("Apply Delegate");
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+    // Apply GPU delegate
+    TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
+    gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
+
+    TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
     }
     else
     {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
+        std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
-    util::timer_stop("Apply Delegate");
 
-    PrintExecutionPlanOps(interpreter);
+    PrintExecutionPlan(interpreter.get(), "Execution Plan AFTER Delegate");
 
     /* Allocate Tensor */
-    util::timer_start("Allocate Tensor");
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
-    util::timer_stop("Allocate Tensor");
 
-
-    util::print_model_summary(interpreter.get(), delegate_applied);
-
-    /* Load input image */
-    util::timer_start("Load Input Image");
+    // Load image
     cv::Mat origin_image = cv::imread(image_path);
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
-    util::timer_stop("Load Input Image");
 
     /* Preprocessing */
-    util::timer_start("E2E Total(Pre+Inf+Post)");
-    util::timer_start("Preprocessing");
-
     // Get input tensor info
     TfLiteTensor *input_tensor = interpreter->input_tensor(0);
     int input_height = input_tensor->dims->data[1];
@@ -138,27 +127,14 @@ int main(int argc, char *argv[])
     std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
                 preprocessed_image.total() * preprocessed_image.elemSize());
 
-    util::timer_stop("Preprocessing");
-
     /* Inference */
-    util::timer_start("Inference");
-
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
-        /* Deallocate delegate */
-        if (xnn_delegate)
-        {
-            TfLiteXNNPackDelegateDelete(xnn_delegate);
-        }
         return 1;
     }
 
-    util::timer_stop("Inference");
-
     /* PostProcessing */
-    util::timer_start("Postprocessing");
-
     // Get output tensor
     TfLiteTensor *output_tensor = interpreter->output_tensor(0);
     std::cout << "[INFO] Output shape : ";
@@ -170,9 +146,6 @@ int main(int argc, char *argv[])
 
     std::vector<float> probs(num_classes);
     util::softmax(logits, probs, num_classes);
-
-    util::timer_stop("Postprocessing");
-    util::timer_stop("E2E Total(Pre+Inf+Post)");
 
     /* Print Results */
     // Load class label mapping
@@ -188,13 +161,12 @@ int main(int argc, char *argv[])
     }
 
     /* Print Timers */
-    util::print_all_timers();
     std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
-    if (xnn_delegate)
+    if (gpu_delegate)
     {
-        TfLiteXNNPackDelegateDelete(xnn_delegate);
+        TfLiteGpuDelegateV2Delete(gpu_delegate);
     }
     return 0;
 }

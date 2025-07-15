@@ -9,6 +9,7 @@
 #include <numeric>
 #include <cmath>
 #include <chrono>
+#include <string>
 
 #include <jsoncpp/json/json.h>
 #include <opencv2/opencv.hpp> //opencv
@@ -55,6 +56,10 @@ namespace util
 
     // Preprocess image to match model input size
     cv::Mat preprocess_image(cv::Mat &image, int target_height, int target_width);
+
+    void print_top_predictions(const std::vector<float> &probs, int num_classes, 
+                                int top_k, bool show_softmax, 
+                                const std::unordered_map<int, std::string> &label_map);
 
 } // namespace util
 

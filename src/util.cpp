@@ -159,4 +159,30 @@ void util::softmax(const float *logits, std::vector<float> &probs, int size)
     }
 }
 
+void util::print_top_predictions(const std::vector<float> &probs,
+                                 int num_classes,
+                                 int top_k,
+                                 bool show_softmax,
+                                 const std::unordered_map<int, std::string> &label_map) {
+    std::vector<int> indices(num_classes);
+    std::iota(indices.begin(), indices.end(), 0);
+
+    // Sort indices based on corresponding probabilities
+    std::partial_sort(indices.begin(), indices.begin() + top_k, indices.end(),
+                      [&](int a, int b) { return probs[a] > probs[b]; });
+
+    for (int i = 0; i < top_k; ++i) {
+        int idx = indices[i];
+        std::cout << "  [Top " << i + 1 << "] Class " << idx;
+
+        // 출력 시 label map이 존재하면 label도 함께 출력
+        if (label_map.count(idx)) {
+            std::cout << " (" << label_map.at(idx) << ")";
+        }
+
+        if (show_softmax) std::cout << " : " << probs[idx];
+        std::cout << std::endl;
+    }
+}
+
 //*==========================================*/

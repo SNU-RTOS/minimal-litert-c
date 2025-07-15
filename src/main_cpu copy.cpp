@@ -15,36 +15,6 @@
 #include "tflite/model.h"
 #include "util.hpp"
 
-void PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter) {
-    std::cout << "The model contains "
-              << interpreter->execution_plan().size()
-              << " nodes in execution plan." << std::endl;
-
-    for (int node_index : interpreter->execution_plan()) {
-        const auto* node_and_reg = interpreter->node_and_registration(node_index);
-        if (!node_and_reg) {
-            std::cerr << "Failed to get node " << node_index << std::endl;
-            continue;
-        }
-
-        const TfLiteNode& node = node_and_reg->first;
-        const TfLiteRegistration& registration = node_and_reg->second;
-
-        std::cout << "Node " << node_index << ": ";
-
-        if (registration.builtin_code != tflite::BuiltinOperator_CUSTOM) {
-            std::cout << tflite::EnumNameBuiltinOperator(
-                             static_cast<tflite::BuiltinOperator>(registration.builtin_code));
-        } else {
-            std::cout << "CUSTOM: "
-                      << (registration.custom_name ? registration.custom_name : "unknown");
-        }
-
-        std::cout << std::endl;
-    }
-}
-
-
 int main(int argc, char *argv[])
 {
     std::cout << "====== main_cpu ====" << std::endl;
@@ -95,7 +65,6 @@ int main(int argc, char *argv[])
     }
     util::timer_stop("Apply Delegate");
 
-    PrintExecutionPlanOps(interpreter);
 
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor");
