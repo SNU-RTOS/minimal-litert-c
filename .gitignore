@@ -13,12 +13,15 @@ output/
 # Log files and temporary files
 *.log
 *.txt
+benchmark/benchmark_model_results/tmp/
 
 # Dependencies and external libraries
-external/
-lib/*
-inc/*
-utils/
+external
+lib
+inc
+bin
+utils
+dev
 
 # Model files (exclude specific models)
 models/*

@@ -1,27 +1,35 @@
 #!/bin/bash
+
+# ──────────────────────────────────────────────────────────────────────────────
+source common.sh
 cd ..
 source .env
-GPU_DELEGATE_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/delegates/gpu/libtensorflowlite_gpu_delegate.so
 
-########## Build ##########
-cd ${LITERT_PATH}
+# ── Build Configuration ───────────────────────────────────────────────────────
+BUILD_MODE=${1:-release}
+setup_build_config "$BUILD_MODE"
 
-echo "[INFO] Build gpu delegate .so .."
-echo "[INFO] Path: ${GPU_DELEGATE_LIB_PATH}"
+# ── Paths ─────────────────────────────────────────────────────────────────────
+GPU_DELEGATE_PATH=${LITERT_PATH}/bazel-bin/tflite/delegates/gpu/libtensorflowlite_gpu_delegate.so
 
-cd ${LITERT_PATH}
+# ── Build GPU Delegate ────────────────────────────────────────────────────────
+echo "[INFO] Build GPU Delegate ($BUILD_MODE mode) .."
+echo "[INFO] Path: ${GPU_DELEGATE_PATH}"
+
+cd "${LITERT_PATH}" || exit 1
 pwd
 
-# Release mode
-bazel build -c opt //tflite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
-    --copt=-Os \
-    --copt=-fPIC \
-    --linkopt=-s
-bazel shutdown
+bazel build ${BAZEL_CONF} \
+  //tflite/delegates/gpu:libtensorflowlite_gpu_delegate.so \
+  ${GPU_COPT_FLAGS} \
+  ${COPT_FLAGS} ${LINKOPTS}
 
+# ── Symlinks ──────────────────────────────────────────────────────────────────
+echo "[INFO] Symlink LiteRT GPU Delegate.."
 
-########## Make symlink ##########
-ln -sf ${GPU_DELEGATE_LIB_PATH} ${ROOT_PATH}/lib/libtensorflowlite_gpu_delegate.so
+create_symlink_or_fail "${GPU_DELEGATE_PATH}" \
+                       "${ROOT_PATH}/lib/libtensorflowlite_gpu_delegate.so" \
+                       "libtensorflowlite_gpu_delegate.so"
 
-cd ${ROOT_PATH}/scripts
+cd "${ROOT_PATH}/scripts"
 pwd

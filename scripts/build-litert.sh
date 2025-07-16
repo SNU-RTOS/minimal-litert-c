@@ -1,42 +1,58 @@
 #!/bin/bash
 
 # ──────────────────────────────────────────────────────────────────────────────
+source common.sh
 cd ..
 source .env
 
 # ── Build Configuration ───────────────────────────────────────────────────────
-FLATBUFFER_PATH=${LITERT_PATH}/bazel-litert/external/flatbuffers/include/flatbuffers
-TENSORFLOW_PATH=${LITERT_PATH}/bazel-litert/external/org_tensorflow/tensorflow
+BUILD_MODE=${1:-release}
+setup_build_config "$BUILD_MODE"
 
+# ── paths ─────────────────────────────────────────────────────────────────────
 LITERT_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/libtensorflowlite.so
 
+TENSORFLOW_INC_PATH=${LITERT_PATH}/bazel-litert/external/org_tensorflow/tensorflow
+FLATBUFFER_INC_PATH=${LITERT_PATH}/bazel-litert/external/flatbuffers/include/flatbuffers
 LITERT_INC_PATH=${LITERT_PATH}/tflite
 
-########## Build ##########
-cd ${LITERT_PATH}
 
-echo "[INFO] Build LiteRT .so .."
-echo "[INFO] Path: ${LITERT_LIB_PATH}"
+echo "[INFO] Build LiteRT ($BUILD_MODE mode)…"
+echo "[INFO] Core:      ${LITERT_LIB_PATH}"
 
-cd ${LITERT_PATH}
+cd "${LITERT_PATH}" || exit 1
 pwd
 
-# Release mode (Note: -Wno-incompatible-pointer-types could cause undefined behavior)
-bazel build -c opt //tflite:tensorflowlite \
-    --copt=-Os \
-    --copt=-fPIC \
-    --copt=-Wno-incompatible-pointer-types \
-    --linkopt=-s
+# 1) Build
+bazel build ${BAZEL_CONF} \
+    //tflite:tensorflowlite \
+    ${NO_GL_FLAG} \
+    ${COPT_FLAGS} \
+    ${LINKOPTS}
 
-########## Make symlink ##########
-ln -sf ${LITERT_LIB_PATH} ${ROOT_PATH}/lib/libtensorflowlite.so
-ln -sf ${LITERT_INC_PATH} ${ROOT_PATH}/inc
-ln -sf ${FLATBUFFER_PATH} ${ROOT_PATH}/inc
-ln -sf ${TENSORFLOW_PATH} ${ROOT_PATH}/inc
+bazel shutdown
 
-cd ${ROOT_PATH}/scripts
+## ──────────── Libs ──────────────────────────────────────────────
+create_symlink_or_fail "${LITERT_LIB_PATH}" \
+                       "${ROOT_PATH}/lib/libtensorflowlite.so" \
+                       "libtensorflowlite.so"
+
+## ──────────── Headers ──────────────────────────────────────────────
+create_symlink_or_fail "${LITERT_INC_PATH}" \
+                       "${ROOT_PATH}/inc/" \
+                       "LiteRT header files"
+
+create_symlink_or_fail "${TENSORFLOW_INC_PATH}" \
+                        "${ROOT_PATH}/inc/" \
+                        "Tensorflow header files"
+
+create_symlink_or_fail "${FLATBUFFER_INC_PATH}" \
+                       "${ROOT_PATH}/inc/" \
+                       "Flatbuffers header files"
+
+# ── Generate Protobuf Headers ─────────────────────────────────────────────────
+
+echo "[INFO] LiteRT build completed successfully!"
+
+cd "${ROOT_PATH}/scripts" || exit 1
 pwd
-
-
-
-
