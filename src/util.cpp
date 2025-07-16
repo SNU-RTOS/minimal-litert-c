@@ -160,9 +160,6 @@ void util::softmax(const float *logits, std::vector<float> &probs, int size)
 }
 
 void util::print_execution_plan(std::unique_ptr<tflite::Interpreter>& interpreter) {
-    std::cout << "The model contains " << interpreter->execution_plan().size() 
-            << " nodes in execution plan." << std::endl;
-
     for (int node_index : interpreter->execution_plan()) {
         const auto* node_and_reg = interpreter->node_and_registration(node_index);
         if (!node_and_reg) {
@@ -182,28 +179,6 @@ void util::print_execution_plan(std::unique_ptr<tflite::Interpreter>& interprete
             std::cout << "CUSTOM: " 
                 << (registration.custom_name ? registration.custom_name : "unknown");
         }
-        std::cout << std::endl;
-    }
-
-    for (int node_index = 0; node_index < interpreter->nodes_size(); ++node_index) {
-        auto* node_and_reg = interpreter->node_and_registration(node_index);
-        if (!node_and_reg) continue;
-
-        const TfLiteNode& node = node_and_reg->first;
-        const TfLiteRegistration& reg = node_and_reg->second;
-
-        std::cout << "Node " << node_index << ": ";
-        if (reg.builtin_code != tflite::BuiltinOperator_CUSTOM) {
-            std::cout << tflite::EnumNameBuiltinOperator(
-                static_cast<tflite::BuiltinOperator>(reg.builtin_code));
-        } else {
-            std::cout << "CUSTOM: " << (reg.custom_name ? reg.custom_name : "unknown");
-        }
-
-        if (node.delegate != nullptr) {
-            std::cout << " [DELEGATED]";
-        }
-
         std::cout << std::endl;
     }
 }

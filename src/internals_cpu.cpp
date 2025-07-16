@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     // Subgraphs, nodes, tensors, and execution plan are created.
     builder(&interpreter);
     /* ======================================================================================================== */
-    /* A simple code snippet for simulating what happens when the operator of the interpreter builder is called */
+    /* Code snippet for simulating what happens when the operator of the interpreter builder is called */
     // 1. Model Validation
 
     // Get the root object of the FlatBuffer model.
@@ -100,21 +100,106 @@ int main(int argc, char *argv[])
         // The space for subgraphs are reserved in the interpreter
 
         // 3-2. Parse tensor information from the buffer information in the SubGraph
-        // and set the tensor variables in the subgraph
+        // verifies the information and sets tensor variables for a subgraph
         const auto* buffers = fb_model->buffers(); // Global raw data about weights, bias, and others, shared across subgraphs
         const auto* tensors = subGraph->tensors(); // Tensor data structure that contains shape, type, pointer to a buffer. Not shared across subgraphs
-        
+
+        std::cout << "Total " << tensors->size() << " tensors in SubGraph [" << i << "]" << std::endl;
+        for(int i = 0; i < tensors->size(); i++) {
+            const auto* tensor = tensors->Get(i);
+            int buffer_index = tensor->buffer();
+            const auto* buffer = buffers->Get(buffer_index);
+
+            std::string name = tensor->name() ? tensor->name()->str() : "(unnamed)";
+            std::string type = tflite::EnumNameTensorType(tensor->type());
+
+            std::cout << "Tensor [" << i << "] " << name
+                    << ", type=" << type
+                    << ", buffer=" << buffer_index;
+
+            // Check if buffer contains actual data
+            // If does it is a read-only tensor
+            // If not it is a read-write tensor
+            if (buffer && buffer->data() && buffer->data()->size() > 0) {
+                std::cout << " (has data, size = " << buffer->data()->size() << ")";
+            } else {
+                std::cout << " (no data)";
+            }
+            std::cout << std::endl;
+
+            // When a tensor is valid the it is saved in the subgraph's tensor variables
+            // If any of the tensors is invalid, an error is raised
+        }
+
+        // 3-3. Parses node information in the SubGraph, which is a vector of operators in execution order
+        // If a node is valid, which means it is configured correctly, it is added to the subgraph
+        // Also, the execution plan, which is a integer vector that contains the node indices in execution order
+        // is also created during the process.
+        // Initially the execution order of nodes are the same as the sequential order of node indices
+        const auto* operators = subGraph->operators(); // A vector that contains the operators of the subgraph in execution order
+        std::cout << "\nTotal " << operators->size() << " operators in SubGraph [" << i << "]" << std::endl;
+        for(int i = 0; i < operators->size(); i++) {
+            const auto* op = operators->Get(i); // Gets the i th operator in the vector
+            int opcode_index = op->opcode_index(); // Gets the operator code of the operator
+            const auto* opcode = op_codes->Get(opcode_index);
+            std::string op_name = tflite::EnumNameBuiltinOperator(opcode->builtin_code());
+
+            std::cout << "Node [" << i << "]: " << op_name << "\n";
+
+            // Inputs
+            std::cout << "  Input tensors: ";
+            if (op->inputs()) {
+                for (int j = 0; j < op->inputs()->size(); ++j) {
+                    std::cout << op->inputs()->Get(j) << " ";
+                }
+            } else {
+                std::cout << "(none)";
+            }
+            std::cout << "\n";
+
+            // Intermediates
+            std::cout << "  Intermediate tensors: ";
+            if (op->intermediates()) {
+                for (int j = 0; j < op->intermediates()->size(); ++j) {
+                    std::cout << op->intermediates()->Get(j) << " ";
+                }
+            } else {
+                std::cout << "(none)";
+            }
+            std::cout << "\n";
+
+            // Outputs
+            std::cout << "  Output tensors: ";
+            if (op->outputs()) {
+                for (int j = 0; j < op->outputs()->size(); ++j) {
+                    std::cout << op->outputs()->Get(j) << " ";
+                }
+            } else {
+                std::cout << "(none)";
+            }
+            std::cout << "\n";
+        }
     }
 
+    // Now let's check the interpreter, if it is correctly instantiated as we saw through the above code
+    std::cout << "\nNumber of subgraphs: " << interpreter->subgraphs_size() << std::endl;
+    std::cout << "Number of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl; // Internally returns only the value of subgraph 0
+    std::cout << "Execution plan size of subgraph 0: " << interpreter->execution_plan().size() << std::endl; // Internally returns only the value of subgraph 0
+    for (int i = 0; i < interpreter->execution_plan().size(); i++) {
+        const auto* node_and_reg = interpreter->node_and_registration(i);
+        if (!node_and_reg) {
+            std::cerr << "Failed to get node " << i << std::endl;
+            continue;
+        }
 
-    // 3-3. Parses node information in the subgraph, which is a vector of operators in execution order.
-    // Then sets 
+        const TfLiteNode& node = node_and_reg->first;
+        const TfLiteRegistration& registration = node_and_reg->second;
 
-    // Now let's check the interpreter
-    std::cout << "Number of subgraphs: " << interpreter->subgraphs_size() << std::endl;
-    std::cout << "Number of nodes: " << interpreter->nodes_size() << std::endl;
-    std::cout << "Execution plan size: " << interpreter->execution_plan().size() << std::endl;
-    util::print_execution_plan(interpreter);
+        std::cout << "Node " << i << ": " 
+            << tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(registration.builtin_code));
+
+        std::cout << std::endl;
+    }
     /* ======================================================================================================== */
 
     util::timer_stop("Build Interpreter");
@@ -123,19 +208,23 @@ int main(int argc, char *argv[])
     util::timer_start("Apply Delegate");
     TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
     TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
-    bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    bool delegate_applied = true;
+    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) != kTfLiteOk)
     {
-        delegate_applied = true;
+        delegate_applied = false;
     }
-    else
-    {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
-    }
-    /* Check the modified execution plan */
-    // Is there a way that we can check whether the delegate is applied or not?
-    // Does the interpreter go through the execution plan or the nodes?
+
+    /* ======================================================================================================== */
+    /* Code snippet for simulating what happens when the a delegate is being applied */
+    // modifyGraphWithDelegate at intrepreter.cc called per subgraph --> subgraph->ModifyGraphWithDelegate --> TfLiteDelegatePrepareInternal() at lite/c/common_internal.cc
+    // --> delegate->Prepare() at each delegate which is usally defined as DelegatePrepare for most of the delegate 
+    //  inside DelegatePrepare, PrepareOpsToDelegate at xnnpack_delegate.cc, checks nodes that can be delegated in the execution plan, various conditions are checked
+    //  --> context->ReplaceNodeSubsetWithDelegateKernels() at subgraph.cc subgraph 만들 때 function이 지정되고 SwithContext()라는 함수를 통해서 런타임에 필요한 함수를 가리키게 함
+    //  --> TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels()가 호출되면 전달 받은 대체 가능한 op들의 vector를 기반으로 execution plan을 새롭게 만듦
+
     util::print_execution_plan(interpreter);
+    /* ======================================================================================================== */
+    
 
     util::timer_stop("Apply Delegate");
 
