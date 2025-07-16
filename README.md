@@ -142,8 +142,10 @@ make -f Makefile_verify_qnn -j4
 ```
 
 # Run Pipelinging
+```bash
 python model_partitioner.py --model-path ./ --config ./config --model-name efficientnetv2b0 --output-dir ./submodels
 ./output/pipeline models/sub_model_1.tflite models/sub_model_2.tflite images/_images_68.png 
+```
 
 ## Supported Models
 
