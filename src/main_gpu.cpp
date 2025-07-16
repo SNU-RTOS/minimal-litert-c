@@ -50,6 +50,8 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
+    util::PrintExecutionPlanOps(interpreter);
+
     /* Apply GPU Delegate */
     util::timer_start("Apply Delegate");
     TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
@@ -66,6 +68,8 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
     util::timer_stop("Apply Delegate");
+
+    util::PrintExecutionPlanOps(interpreter);
 
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor");

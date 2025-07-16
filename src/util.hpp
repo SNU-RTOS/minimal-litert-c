@@ -61,6 +61,7 @@ namespace util
                                 int top_k, bool show_softmax, 
                                 const std::unordered_map<int, std::string> &label_map);
 
+    void PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter);
 } // namespace util
 
 #endif // _UTIL_H_

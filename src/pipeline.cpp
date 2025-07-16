@@ -48,7 +48,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         int input_width = 224;
 
         // --- Preprocessing to float32 HWC layout normalized image ---
-        std::cout << "[stage0] Preprocessing image: " << images[i] << std::endl;
+        std::cout << "[stage0] Preprocessing image: " << images[i] << "\n" << std::endl;
         cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
         if (preprocessed_image.empty()) {
             std::cerr << "[stage0] Preprocessing failed: " << images[i] << "\n";
