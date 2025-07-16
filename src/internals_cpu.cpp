@@ -17,6 +17,8 @@
 #include "tflite/model.h"
 #include "util.hpp"
 
+#include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
+
 int main(int argc, char *argv[])
 {
     std::cout << "====== main_cpu ====" << std::endl;
@@ -43,13 +45,78 @@ int main(int argc, char *argv[])
     util::timer_stop("Load Model");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Sleep for 1 second to see the output before exit
+    /* The model file is mapped to the user-space memory of the process */
+    // Use 
+
 
     /* Build interpreter */
     util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
+    /* Main data structures of the interpreter builder */
+    // Simply, the _model variable and _resolver variable of the builder object is set as model and resolver, respectively.
     tflite::InterpreterBuilder builder(*model, resolver);
-    std::unique_ptr<tflite::Interpreter> interpreter;
+    
+    /* Main data structures before the operator of the interpreter builder */
+    std::unique_ptr<tflite::Interpreter> interpreter; // interpreter is a nullptr
+
+    // Mapping between the operations in the model and the resolver is done and it is saved as an node_and_registration variable in the interpreter.
+    // Subgraphs, nodes, tensors, and execution plan are created.
     builder(&interpreter);
+    /* ======================================================================================================== */
+    /* A simple code snippet for simulating what happens when the operator of the interpreter builder is called */
+    // 1. Model Validation
+
+    // Get the root object of the FlatBuffer model.
+    // This provides access to the model structure (e.g., subgraphs, tensors, operators)
+    const tflite::Model* fb_model = model->GetModel(); // fb means flatbuffer
+    std::cout << "Schema version of the model: " << fb_model->version() 
+    << "\nSupported schema version: " << TFLITE_SCHEMA_VERSION << std::endl;
+
+    // 2. Operator mapping
+    const auto* op_codes = fb_model->operator_codes(); // It is a vector of tflite::OperatorCode
+    std::cout << "\nTotal " << op_codes->size() << " operators in the model" << std::endl;
+
+    for (int i = 0; i < op_codes->size(); i++) {
+        const auto* opcode = op_codes->Get(i); // The i th operator code in the op_codes
+        auto builtin_code = opcode->builtin_code(); // An enum indicating the type of the operator like CONV_2D, RELU, etc.
+        std::string op_name = tflite::EnumNameBuiltinOperator(builtin_code);
+        int op_version = opcode->version(); // Version of the operator
+        const TfLiteRegistration* reg = resolver.FindOp(builtin_code, op_version); // Checks whether the OpResolver supports the operator
+        
+        std::cout << "[" << i << "] " << op_name << ", version: " << op_version 
+        << ", supported: " << (reg ? "Y" : "N") << std::endl;
+    }
+
+    // 3. Internal data instantiation
+    // 3-1. Extracts subgraph information from the model
+    const auto* subGraphs = fb_model->subgraphs();
+    std::cout << "\nNumber of subgraphs: " << subGraphs->size() << std::endl;
+    for( int i = 0; i < subGraphs->size(); i++){
+        // Note: tflite::SubGraph is for FlatBuffer serialized subgraph info
+        // and tflite::Subgraph is for subgraph class that the interpreter uses
+        const tflite::SubGraph* subGraph = subGraphs->Get(i); // Gets the i th SubGraph of the model
+        std::cout << "SubGraph [" << i << "] " 
+            << (subGraph->name() ? subGraph->name()->str() : "(unnamed)") << std::endl;
+        // The space for subgraphs are reserved in the interpreter
+
+        // 3-2. Parse tensor information from the buffer information in the SubGraph
+        // and set the tensor variables in the subgraph
+        const auto* buffers = fb_model->buffers(); // Global raw data about weights, bias, and others, shared across subgraphs
+        const auto* tensors = subGraph->tensors(); // Tensor data structure that contains shape, type, pointer to a buffer. Not shared across subgraphs
+        
+    }
+
+
+    // 3-3. Parses node information in the subgraph, which is a vector of operators in execution order.
+    // Then sets 
+
+    // Now let's check the interpreter
+    std::cout << "Number of subgraphs: " << interpreter->subgraphs_size() << std::endl;
+    std::cout << "Number of nodes: " << interpreter->nodes_size() << std::endl;
+    std::cout << "Execution plan size: " << interpreter->execution_plan().size() << std::endl;
+    util::print_execution_plan(interpreter);
+    /* ======================================================================================================== */
+
     util::timer_stop("Build Interpreter");
 
     /* Apply XNNPACK delegate */
@@ -65,11 +132,17 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
     }
+    /* Check the modified execution plan */
+    // Is there a way that we can check whether the delegate is applied or not?
+    // Does the interpreter go through the execution plan or the nodes?
+    util::print_execution_plan(interpreter);
 
     util::timer_stop("Apply Delegate");
 
 
     /* Allocate Tensor */
+    // Types of tensors, what happens inside it
+    // How the memory space for ArenaRW tensors changes after AllocateTensors() is called
     util::timer_start("Allocate Tensor");
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {

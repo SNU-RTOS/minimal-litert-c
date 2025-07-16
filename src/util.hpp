@@ -56,6 +56,8 @@ namespace util
     // Preprocess image to match model input size
     cv::Mat preprocess_image(cv::Mat &image, int target_height, int target_width);
 
+    void print_execution_plan(std::unique_ptr<tflite::Interpreter>& interpreter);
+
 } // namespace util
 
 #endif // _UTIL_H_
