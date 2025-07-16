@@ -186,24 +186,34 @@ int main(int argc, char* argv[]) {
     util::timer_start("main:total");
 
     // --- [1] Parse model paths and input arguments ---
-    const char* model0_path = argv[1];  // Path to first model (used in stage1)
-    const char* model1_path = argv[2];  // Path to second model (used in stage2)
-    std::vector<std::string> images;    // List of input image paths
-    int rate_ms = 0;                    // Input rate in milliseconds
-
-    for (int i = 3; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg.rfind("--input-rate=", 0) == 0)
-            rate_ms = std::stoi(arg.substr(13));  // Extract rate from --input-rate=XX
-        else
-            images.push_back(arg);  // Treat as image file path
+    if (argc < 4) {
+        std::cerr << "Usage: " << argv[0] << " <model0.tflite> <model1.tflite> <image_path> [--input-rate=XX]" << std::endl;
+        return 1;
     }
 
+    const char* model0_path = argv[1];
+    const char* model1_path = argv[2];
+    std::string image_path = argv[3];
+    int rate_ms = 0;
+
+    // Optional --input-rate
+    for (int i = 4; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.rfind("--input-rate=", 0) == 0) {
+            rate_ms = std::stoi(arg.substr(13));
+        }
+    }
+
+    // Fill image list with the same image 100 times
+    std::vector<std::string> images(100, image_path);
+
+    // --- [2] Load TFLite models ---
     util::timer_start("main:load_models");
     auto model0 = tflite::FlatBufferModel::BuildFromFile(model0_path);
     auto model1 = tflite::FlatBufferModel::BuildFromFile(model1_path);
     util::timer_stop("main:load_models");
 
+    // --- [3] Build interpreters ---
     util::timer_start("main:build_interpreters");
     tflite::ops::builtin::BuiltinOpResolver resolver;
     std::unique_ptr<tflite::Interpreter> interp0, interp1;
@@ -211,20 +221,24 @@ int main(int argc, char* argv[]) {
     tflite::InterpreterBuilder(*model1, resolver)(&interp1);
     util::timer_stop("main:build_interpreters");
 
+    // --- [4] Set threading options ---
     interp0->SetNumThreads(1);
     interp1->SetNumThreads(4);
 
+    // --- [5] Apply GPU delegate to model0 ---
     util::timer_start("main:apply_delegate");
     TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
     TfLiteDelegate* gpu = TfLiteGpuDelegateV2Create(&opts);
     interp0->ModifyGraphWithDelegate(gpu);
     util::timer_stop("main:apply_delegate");
 
+    // --- [6] Allocate tensors ---
     util::timer_start("main:allocate_tensors");
     interp0->AllocateTensors();
     interp1->AllocateTensors();
     util::timer_stop("main:allocate_tensors");
 
+    // --- [7] Launch pipeline threads ---
     util::timer_start("main:thread_join");
     std::thread t0(stage0_worker, std::ref(images), rate_ms);
     std::thread t1(stage1_worker, interp0.get());
@@ -235,13 +249,13 @@ int main(int argc, char* argv[]) {
     t2.join();
     util::timer_stop("main:thread_join");
 
+    // --- [8] Cleanup ---
     if (gpu) TfLiteGpuDelegateV2Delete(gpu);
 
     util::timer_stop("main:total");
 
-    // --- [10] Print all collected timing results ---
+    // --- [9] Print timers ---
     util::print_all_timers();
 
     return 0;
 }
-
