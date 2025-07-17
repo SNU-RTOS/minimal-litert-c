@@ -167,7 +167,6 @@ void util::print_execution_plan(std::unique_ptr<tflite::Interpreter>& interprete
             continue;
         }
 
-        const TfLiteNode& node = node_and_reg->first;
         const TfLiteRegistration& registration = node_and_reg->second;
 
         std::cout << "Node " << node_index << ": ";

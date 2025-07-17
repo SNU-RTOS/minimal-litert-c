@@ -18,6 +18,7 @@
 #include "util.hpp"
 
 #include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
+#include <dlfcn.h> // for dynamic loading of libraries, used to find out the name of the delegated function of XNNPACK
 
 int main(int argc, char *argv[])
 {
@@ -113,9 +114,18 @@ int main(int argc, char *argv[])
             std::string name = tensor->name() ? tensor->name()->str() : "(unnamed)";
             std::string type = tflite::EnumNameTensorType(tensor->type());
 
+
             std::cout << "Tensor [" << i << "] " << name
-                    << ", type=" << type
-                    << ", buffer=" << buffer_index;
+                    << ", type = " << type
+                    << ", shape = [";
+            if (tensor->shape()) {
+                for (int d = 0; d < tensor->shape()->size(); ++d) {
+                    std::cout << tensor->shape()->Get(d);
+                    if (d < tensor->shape()->size() - 1) std::cout << ", ";
+                }
+            }
+            std::cout << "]"
+                    << ", buffer = " << buffer_index;
 
             // Check if buffer contains actual data
             // If does it is a read-only tensor
@@ -179,7 +189,7 @@ int main(int argc, char *argv[])
             }
             std::cout << "\n";
         }
-    }
+    } 
 
     // Now let's check the interpreter, if it is correctly instantiated as we saw through the above code
     std::cout << "\nNumber of subgraphs: " << interpreter->subgraphs_size() << std::endl;
@@ -192,14 +202,14 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        const TfLiteNode& node = node_and_reg->first;
+        // const TfLiteNode& node = node_and_reg->first;
         const TfLiteRegistration& registration = node_and_reg->second;
 
         std::cout << "Node " << i << ": " 
             << tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(registration.builtin_code));
 
         std::cout << std::endl;
-    }
+    } // this for loop is implemented as util::print_execution_plan()
     /* ======================================================================================================== */
 
     util::timer_stop("Build Interpreter");
@@ -215,19 +225,153 @@ int main(int argc, char *argv[])
     }
 
     /* ======================================================================================================== */
-    /* Code snippet for simulating what happens when the a delegate is being applied */
-    // modifyGraphWithDelegate at intrepreter.cc called per subgraph --> subgraph->ModifyGraphWithDelegate --> TfLiteDelegatePrepareInternal() at lite/c/common_internal.cc
-    // --> delegate->Prepare() at each delegate which is usally defined as DelegatePrepare for most of the delegate 
-    //  inside DelegatePrepare, PrepareOpsToDelegate at xnnpack_delegate.cc, checks nodes that can be delegated in the execution plan, various conditions are checked
-    //  --> context->ReplaceNodeSubsetWithDelegateKernels() at subgraph.cc subgraph 만들 때 function이 지정되고 SwithContext()라는 함수를 통해서 런타임에 필요한 함수를 가리키게 함
-    //  --> TfLiteStatus Subgraph::ReplaceNodeSubsetsWithDelegateKernels()가 호출되면 전달 받은 대체 가능한 op들의 vector를 기반으로 execution plan을 새롭게 만듦
+    /* Code snippet for checking how the subgraph changes after applying a delegate */
+    std::cout << "\nNumber of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl;
+    for(int node_index = 0; node_index < interpreter->nodes_size(); node_index++) {
+        const auto* node_and_reg = interpreter->node_and_registration(node_index);
+        
+        const TfLiteNode& node = node_and_reg->first;
+        const TfLiteRegistration& registration = node_and_reg->second;
 
+        std::cout << "Node " << node_index << ": "
+        << tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(registration.builtin_code))
+        << std::endl;
+    }
+
+    std::cout << "\nExecution plan size of subgraph 0: " << interpreter->execution_plan().size() << std::endl;
     util::print_execution_plan(interpreter);
+    // input and output tensors of the delegate node
+    {
+        // Number of tensors
+        std::cout << "\nNumber of tensors in subgraph 0: " << interpreter->tensors_size() << std::endl;
+
+        for (int i = 0; i < interpreter->tensors_size(); ++i) {
+            const TfLiteTensor* t = interpreter->tensor(i);
+            if (true/*t->allocation_type != kTfLiteNone*/) {
+                std::cout << "Tensor " << i << " is used by interpreter, alloc: ";
+                switch(t->allocation_type) {
+                    case kTfLiteMemNone: 
+                        std::cout << "kTfLiteMemNone" << std::endl;
+                        break;
+                    case kTfLiteMmapRo: 
+                        std::cout << "kTfLiteMmapRo" << std::endl;
+                        break;
+                    case kTfLiteArenaRw:
+                        std::cout << "kTfLiteArenaRw" << std::endl;
+                        break;
+                    case kTfLiteArenaRwPersistent: 
+                        std::cout << "kTfLiteArenaRwPersistent" << std::endl;
+                        break;
+                    case kTfLiteDynamic: 
+                        std::cout << "kTfLiteDynamic" << std::endl;
+                        break;
+                    case kTfLitePersistentRo: 
+                        std::cout << "kTfLitePersistentRo" << std::endl;
+                        break;
+                    case kTfLiteCustom: 
+                        std::cout << "kTfLiteCustom" << std::endl;
+                        break;
+                    default: 
+                        std::cout << "Unknown" << std::endl;
+                        break;
+                }
+            }
+        }
+
+        const TfLiteNode& node = (interpreter->node_and_registration(50))->first; // We already know the node index
+        const TfLiteRegistration& reg = (interpreter->node_and_registration(50))->second;
+        Dl_info info;
+        if (dladdr(reinterpret_cast<void*>(reg.invoke), &info)) {
+            std::cout << "Delegate invoke: " << info.dli_sname << "\n";
+        }
+
+        // Getting what the node points to, it is a new subgraph that the delegate took
+        tflite::Subgraph* subgraph = reinterpret_cast<tflite::Subgraph*>(node.user_data);
+        std::cout << "\nCheck delegate node " << subgraph->nodes_size() << std::endl;
+        for (int i = 0; i < subgraph->nodes_size(); i++) {
+            std::cout << "I: " << i << std::endl;
+            const auto* node_and_reg = subgraph->node_and_registration(i);
+            const TfLiteRegistration& internal_reg = node_and_reg->second;
+
+            // You can get the op name from builtin_code or custom_name
+            if (internal_reg.custom_name) {
+                std::cout << "Node " << i << ": " << internal_reg.custom_name << "\n";
+            } else {
+                std::cout << "Node " << i << ": " << tflite::EnumNameBuiltinOperator(
+                    static_cast<tflite::BuiltinOperator>(internal_reg.builtin_code)) << "\n";
+            }
+
+            Dl_info info;
+            if (dladdr(reinterpret_cast<void*>(internal_reg.invoke), &info) && info.dli_sname) {
+                std::cout << "Invoke function name: " << info.dli_sname << "\n";
+            } else {
+                std::cout << "Could not resolve function name\n";
+            }
+        }
+        
+        // Access input tensors
+        std::cout << "\nInputs:\n";
+        for (int i = 0; i < node.inputs->size; ++i) {
+            int tensor_index = node.inputs->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "])\n";
+        }
+        std::cout << std::endl;
+
+        // Access intermediate tensors
+        std::cout << "Intermediates:\n";
+        for (int i = 0; i < node.intermediates->size; ++i) {
+            int tensor_index = node.intermediates->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "]) ";
+        }
+        std::cout << std::endl;
+
+        // Access intermediate tensors
+        std::cout << "Temporaries:\n";
+        for (int i = 0; i < node.temporaries->size; ++i) {
+            int tensor_index = node.temporaries->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "]) ";
+        }
+        std::cout << std::endl;
+
+        // Access output tensors
+        std::cout << "Outputs:\n";
+        for (int i = 0; i < node.outputs->size; ++i) {
+            int tensor_index = node.outputs->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "]) ";
+        }
+        std::cout << std::endl;
+    }
     /* ======================================================================================================== */
-    
 
     util::timer_stop("Apply Delegate");
-
 
     /* Allocate Tensor */
     // Types of tensors, what happens inside it
@@ -238,6 +382,15 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
+
+    /* ======================================================================================================== */
+    // Code snippet for simulating what happens during AllocateTensors
+    // Memory planner is created per subgraph
+    // ArenaRW tensors
+    // Sum of memory space compared to the actual memory space that is suitable
+    // XNNPACK delegate 쓰면 ArenaRW tensor가 하나 밖에 없어서 줄어들 일이 없음 흠..
+    /* ======================================================================================================== */
+
     util::timer_stop("Allocate Tensor");
 
 
@@ -277,6 +430,10 @@ int main(int argc, char *argv[])
     /* Inference */
     util::timer_start("Inference");
 
+    /* ======================================================================================================== */
+    // 여기서는 call stack 보여주는게 좋을 듯
+
+    /* ======================================================================================================== */
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
