@@ -182,5 +182,25 @@ void util::print_execution_plan(std::unique_ptr<tflite::Interpreter>& interprete
     }
 }
 
+void util::check_proc_maps() {
+    // std::string cmd = "ls -l /proc/self";
+    pid_t pid = getpid();
+    std::stringstream cmd;
+    cmd << "cat /proc/" << pid << "/maps | grep tflite";
+    std::array<char, 256> buffer;
+    std::string result;
+
+    FILE* pipe = popen(cmd.str().c_str(), "r");
+    if (!pipe) {
+        std::cerr << "popen() failed!" << std::endl;
+    }
+
+    // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        std::cout << buffer.data();  // directly print line
+    }
+
+    pclose(pipe);
+}
 
 //*==========================================*/

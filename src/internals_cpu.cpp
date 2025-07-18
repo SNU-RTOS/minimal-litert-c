@@ -45,10 +45,8 @@ int main(int argc, char *argv[])
     }
     util::timer_stop("Load Model");
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Sleep for 1 second to see the output before exit
     /* The model file is mapped to the user-space memory of the process */
-    // Use 
-
+    util::check_proc_maps(); // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
 
     /* Build interpreter */
     util::timer_start("Build Interpreter");

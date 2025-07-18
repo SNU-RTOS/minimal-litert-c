@@ -58,6 +58,7 @@ namespace util
 
     void print_execution_plan(std::unique_ptr<tflite::Interpreter>& interpreter);
 
+    void check_proc_maps();
 } // namespace util
 
 #endif // _UTIL_H_
