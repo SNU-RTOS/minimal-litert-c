@@ -280,34 +280,6 @@ int main(int argc, char *argv[])
 
         const TfLiteNode& node = (interpreter->node_and_registration(50))->first; // We already know the node index
         const TfLiteRegistration& reg = (interpreter->node_and_registration(50))->second;
-        Dl_info info;
-        if (dladdr(reinterpret_cast<void*>(reg.invoke), &info)) {
-            std::cout << "Delegate invoke: " << info.dli_sname << "\n";
-        }
-
-        // Getting what the node points to, it is a new subgraph that the delegate took
-        tflite::Subgraph* subgraph = reinterpret_cast<tflite::Subgraph*>(node.user_data);
-        std::cout << "\nCheck delegate node " << subgraph->nodes_size() << std::endl;
-        for (int i = 0; i < subgraph->nodes_size(); i++) {
-            std::cout << "I: " << i << std::endl;
-            const auto* node_and_reg = subgraph->node_and_registration(i);
-            const TfLiteRegistration& internal_reg = node_and_reg->second;
-
-            // You can get the op name from builtin_code or custom_name
-            if (internal_reg.custom_name) {
-                std::cout << "Node " << i << ": " << internal_reg.custom_name << "\n";
-            } else {
-                std::cout << "Node " << i << ": " << tflite::EnumNameBuiltinOperator(
-                    static_cast<tflite::BuiltinOperator>(internal_reg.builtin_code)) << "\n";
-            }
-
-            Dl_info info;
-            if (dladdr(reinterpret_cast<void*>(internal_reg.invoke), &info) && info.dli_sname) {
-                std::cout << "Invoke function name: " << info.dli_sname << "\n";
-            } else {
-                std::cout << "Could not resolve function name\n";
-            }
-        }
         
         // Access input tensors
         std::cout << "\nInputs:\n";

@@ -26,6 +26,9 @@
 
 typedef void* FuncPtr;
 
+static int buffer_count = 0; // global counter for tracking the number of buffers
+static int kernel_count = 0; // global counter for tracking the number of OpenCL kernels
+
 struct FunctionEntry {
     const char* name;
     FuncPtr pointer;
@@ -86,7 +89,7 @@ extern "C" {   // <-- C linkage to avoid function name mangling of g++ compiler
 // The function is called when the library is loaded
 __attribute__((constructor))
 void on_shim_load() {
-    std::cout << "[SHIM] libOpenCL_shim_internal.so loaded!\n" << std::endl;
+    std::cout << "[SHIM] libOpenCL_shim_profiling.so loaded!\n" << std::endl;
 
     // Load the vendor-provided OpenCL library
     if (!vendor_opencl_lib) {
@@ -105,25 +108,21 @@ void* clGetExtensionFunctionAddress(const char* func_name) {
         return nullptr;
     }
 
-    std::cout << "[SHIM] clGetExtensionFunctionAddress called for: " << func_name << std::endl;
-
     for (const FunctionEntry* entry = scheduler_function_table; entry->name != nullptr; ++entry) {
         if (strcmp(entry->name, func_name) == 0) {
-            std::cout << "[SHIM] Found function: " << func_name << " → " << entry->pointer << std::endl;
+            // std::cout << "[SHIM] Found function: " << func_name << " → " << entry->pointer << std::endl;
             return entry->pointer;
         }
     }
 
-    std::cerr << "[SHIM] Function not found: " << func_name << std::endl;
+    // std::cerr << "[SHIM] Function not found: " << func_name << std::endl;
     return nullptr;
 }
 
 void* clGetExtensionFunctionAddressForPlatform(cl_platform_id platform, const char* func_name) {
-    std::cout << "[SHIM] clGetExtensionFunctionAddressForPlatform called for: " << func_name << std::endl;
     return clGetExtensionFunctionAddress(func_name);
 }
 
-// ===== Start of Platform Functions =====
 cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms, cl_uint *num_platforms) {
     cl_int status;
     auto clGetPlatformIDsFn = (cl_int (*)(cl_uint, cl_platform_id*, cl_uint*)) load_vendor_func("clGetPlatformIDs");
@@ -144,9 +143,7 @@ cl_int clGetPlatformInfo(cl_platform_id platform,
 
     return status;
 }
-// ===== End of Platform Functions =====
 
-// ===== Start of Device Functions =====
 cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
     cl_uint num_entries, cl_device_id *devices, cl_uint *num_devices) {
     cl_int status;
@@ -164,7 +161,6 @@ cl_int clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
 
     auto clGetDeviceInfoFn = (cl_int (*)(cl_device_id, cl_device_info, size_t, void*, size_t*)) load_vendor_func("clGetDeviceInfo");
     status = clGetDeviceInfoFn(device, param_name, param_value_size, param_value, param_value_size_ret);
-    std::cout << "clGetDeviceInfo called!" << std::endl;
 
     return status;
 }
@@ -189,6 +185,7 @@ cl_program clCreateProgramWithSource(cl_context context,
     cl_int* errcode_ret) {
 
     auto clCreateProgramWithSourceFn = (cl_program (*)(cl_context, cl_uint, const char**, const size_t*, cl_int*)) load_vendor_func("clCreateProgramWithSource");
+    std::cout << "clCreateProgramWithSource called" << std::endl;
 
     return clCreateProgramWithSourceFn(context, count, strings, lengths, errcode_ret);
 }
@@ -202,7 +199,8 @@ cl_int clBuildProgram(cl_program program,
 
     cl_int status;
     auto clBuildProgramFn = (cl_int (*)(cl_program, cl_uint, const cl_device_id*, const char*, void (*)(cl_program, void*), void*)) load_vendor_func("clBuildProgram");
-    
+    std::cout << "clBuildProgram called" << std::endl;
+
     status = clBuildProgramFn(program, num_devices, device_list, options, pfn_notify, user_data);
 
     return status;
@@ -213,6 +211,7 @@ cl_kernel clCreateKernel(cl_program program,
     cl_int* errcode_ret) {
     
     auto clCreateKernelFn = (cl_kernel (*)(cl_program, const char*, cl_int*)) load_vendor_func("clCreateKernel");
+    std::cout << "clCreateKernel called, total " << ++kernel_count << " kernels " << kernel_name << std::endl;
 
     return clCreateKernelFn(program, kernel_name, errcode_ret);
 }
@@ -224,6 +223,7 @@ cl_mem clCreateBuffer(cl_context context,
     cl_int* errcode_ret) {
 
     auto clCreateBufferFn = (cl_mem (*)(cl_context, cl_mem_flags, size_t, void*, cl_int*)) load_vendor_func("clCreateBuffer");
+    // std::cout << "clCreateBuffer called, total " << buffer_count++ << " buffers" << std::endl;
 
     return clCreateBufferFn(context, flags, size, host_ptr, errcode_ret);
 }
@@ -236,6 +236,7 @@ cl_int clSetKernelArg(cl_kernel kernel,
     cl_int status;
     auto clSetKernelArgFn = (cl_int (*)(cl_kernel, cl_uint, size_t, const void*))load_vendor_func("clSetKernelArg");
     status = clSetKernelArgFn(kernel, arg_index, arg_size, arg_value);
+    // std::cout << "clSetKernelArg called" << std::endl;
 
     return status;
 }
@@ -247,6 +248,7 @@ cl_command_queue clCreateCommandQueueWithProperties(cl_context context,
     cl_int* errcode_ret) {
 
     auto clCreateCommandQueueWithPropertiesFn = (cl_command_queue (*)(cl_context, cl_device_id, const cl_queue_properties*, cl_int*)) load_vendor_func("clCreateCommandQueueWithProperties");
+    std::cout << "clCreateCommandQueue called" << std::endl;
 
     // Check if properties already enable profiling
     bool profiling_enabled = false;
@@ -368,7 +370,8 @@ cl_int clEnqueueNDRangeKernel(cl_command_queue queue,
     cl_int status;
     auto clEnqueueNDRangeKernelFn=(cl_int(*)(cl_command_queue,cl_kernel,cl_uint,const size_t*,const size_t*,const size_t*,cl_uint,const cl_event*,cl_event*))load_vendor_func("clEnqueueNDRangeKernel");
     auto clSetEventCallbackFn = (cl_int (*)(cl_event, cl_int, void (*)(cl_event, cl_int, void*), void*)) load_vendor_func("clSetEventCallback");
-    
+    std::cout << "clEnqueueNDRangeKernel called" << std::endl;
+
     if (event) {
         // User wants the event — just forward the call, no profiling
         status = clEnqueueNDRangeKernelFn(
@@ -452,6 +455,7 @@ cl_mem clCreateImage(cl_context context,
     cl_int* errcode_ret) {
     
     auto clCreateImageFn = (cl_mem (*)(cl_context, cl_mem_flags, const cl_image_format*, const cl_image_desc*, void*, cl_int*)) load_vendor_func("clCreateImage");
+    // std::cout << "clCreateImage called, total " << buffer_count++ << " buffers" << std::endl;
 
     return clCreateImageFn(context, flags, image_format, image_desc, host_ptr, errcode_ret);
 }

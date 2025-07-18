@@ -55,8 +55,11 @@ int main(int argc, char *argv[])
     TfLiteGpuDelegateOptionsV2 gpu_opts = TfLiteGpuDelegateOptionsV2Default();
     gpu_opts.inference_preference = TFLITE_GPU_INFERENCE_PREFERENCE_FAST_SINGLE_ANSWER;
 
+    std::cout << "GPU delegate create 1" << std::endl;
     TfLiteDelegate *gpu_delegate = TfLiteGpuDelegateV2Create(&gpu_opts);
+    std::cout << "GPU delegate create 2" << std::endl;
     bool delegate_applied = false;
+    std::cout << "GPU delegate apply 1" << std::endl;
     if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
@@ -65,6 +68,127 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Failed to apply GPU delegate" << std::endl;
     }
+    std::cout << "GPU delegate apply 2" << std::endl;
+
+    /* ======================================================================================================== */
+    /* Code snippet for checking how the subgraph changes after applying a delegate */
+    std::cout << "\nNumber of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl;
+    for(int node_index = 0; node_index < interpreter->nodes_size(); node_index++) {
+        const auto* node_and_reg = interpreter->node_and_registration(node_index);
+        
+        const TfLiteNode& node = node_and_reg->first;
+        const TfLiteRegistration& registration = node_and_reg->second;
+
+        std::cout << "Node " << node_index << ": "
+        << tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(registration.builtin_code))
+        << std::endl;
+    }
+
+    std::cout << "\nExecution plan size of subgraph 0: " << interpreter->execution_plan().size() << std::endl;
+    util::print_execution_plan(interpreter);
+    // input and output tensors of the delegate node
+    {
+        // Number of tensors
+        std::cout << "\nNumber of tensors in subgraph 0: " << interpreter->tensors_size() << std::endl;
+
+        for (int i = 0; i < interpreter->tensors_size(); ++i) {
+            const TfLiteTensor* t = interpreter->tensor(i);
+            if (true/*t->allocation_type != kTfLiteNone*/) {
+                std::cout << "Tensor " << i << " is used by interpreter, alloc: ";
+                switch(t->allocation_type) {
+                    case kTfLiteMemNone: 
+                        std::cout << "kTfLiteMemNone" << std::endl;
+                        break;
+                    case kTfLiteMmapRo: 
+                        std::cout << "kTfLiteMmapRo" << std::endl;
+                        break;
+                    case kTfLiteArenaRw:
+                        std::cout << "kTfLiteArenaRw" << std::endl;
+                        break;
+                    case kTfLiteArenaRwPersistent: 
+                        std::cout << "kTfLiteArenaRwPersistent" << std::endl;
+                        break;
+                    case kTfLiteDynamic: 
+                        std::cout << "kTfLiteDynamic" << std::endl;
+                        break;
+                    case kTfLitePersistentRo: 
+                        std::cout << "kTfLitePersistentRo" << std::endl;
+                        break;
+                    case kTfLiteCustom: 
+                        std::cout << "kTfLiteCustom" << std::endl;
+                        break;
+                    default: 
+                        std::cout << "Unknown" << std::endl;
+                        break;
+                }
+            }
+        }
+
+        const TfLiteNode& node = (interpreter->node_and_registration(50))->first; // We already know the node index
+        const TfLiteRegistration& reg = (interpreter->node_and_registration(50))->second;
+        
+        // Access input tensors
+        std::cout << "\nInputs:\n";
+        for (int i = 0; i < node.inputs->size; ++i) {
+            int tensor_index = node.inputs->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "])\n";
+        }
+        std::cout << std::endl;
+
+        // Access intermediate tensors
+        std::cout << "Intermediates:\n";
+        for (int i = 0; i < node.intermediates->size; ++i) {
+            int tensor_index = node.intermediates->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "]) ";
+        }
+        std::cout << std::endl;
+
+        // Access intermediate tensors
+        std::cout << "Temporaries:\n";
+        for (int i = 0; i < node.temporaries->size; ++i) {
+            int tensor_index = node.temporaries->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "]) ";
+        }
+        std::cout << std::endl;
+
+        // Access output tensors
+        std::cout << "Outputs:\n";
+        for (int i = 0; i < node.outputs->size; ++i) {
+            int tensor_index = node.outputs->data[i];
+            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
+            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
+                    << ", dims: [";
+            for (int d = 0; d < tensor->dims->size; ++d) {
+                std::cout << tensor->dims->data[d];
+                if (d != tensor->dims->size - 1) std::cout << ", ";
+            }
+            std::cout << "]) ";
+        }
+        std::cout << std::endl;
+    }
+    /* ======================================================================================================== */
+
     util::timer_stop("Apply Delegate");
 
     /* Allocate Tensor */
