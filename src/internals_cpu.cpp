@@ -39,7 +39,8 @@ int main(int argc, char *argv[])
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     /* The model file is mapped to the user-space memory of the process */
-    util::check_proc_maps(); // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
+    util::check_proc_maps(); // Equivalent to "cat /proc/<pid>/maps | grep tflite"
+    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
     if (!model)
     {
@@ -139,11 +140,7 @@ int main(int argc, char *argv[])
             // If any of the tensors is invalid, an error is raised
         }
 
-        // 3-3. Parses node information in the SubGraph, which is a vector of operators in execution order
-        // If a node is valid, which means it is configured correctly, it is added to the subgraph
-        // Also, the execution plan, which is a integer vector that contains the node indices in execution order
-        // is also created during the process.
-        // Initially the execution order of nodes are the same as the sequential order of node indices
+        // 3-3. Parses node information in the SubGraph, which is a vector of node indices in execution order
         const auto* operators = subGraph->operators(); // A vector that contains the operators of the subgraph in execution order
         std::cout << "\nTotal " << operators->size() << " operators in SubGraph [" << i << "]" << std::endl;
         for(int i = 0; i < operators->size(); i++) {
