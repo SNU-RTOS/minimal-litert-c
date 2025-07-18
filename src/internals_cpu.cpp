@@ -52,15 +52,8 @@ int main(int argc, char *argv[])
     /* Build interpreter */
     util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
-    /* Main data structures of the interpreter builder */
-    // Simply, the _model variable and _resolver variable of the builder object is set as model and resolver, respectively.
     tflite::InterpreterBuilder builder(*model, resolver);
-    
-    /* Main data structures before the operator of the interpreter builder */
-    std::unique_ptr<tflite::Interpreter> interpreter; // interpreter is a nullptr
-
-    // Mapping between the operations in the model and the resolver is done and it is saved as an node_and_registration variable in the interpreter.
-    // Subgraphs, nodes, tensors, and execution plan are created.
+    std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
     /* ======================================================================================================== */
     /* Code snippet for simulating what happens when the operator of the interpreter builder is called */
