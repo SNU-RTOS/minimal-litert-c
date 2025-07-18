@@ -38,15 +38,15 @@ int main(int argc, char *argv[])
     util::timer_start("Load Model");
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
+    /* The model file is mapped to the user-space memory of the process */
+    util::check_proc_maps(); // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
+
     if (!model)
     {
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
     util::timer_stop("Load Model");
-
-    /* The model file is mapped to the user-space memory of the process */
-    util::check_proc_maps(); // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
 
     /* Build interpreter */
     util::timer_start("Build Interpreter");
