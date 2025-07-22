@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 
         // Preprocessing
         util::timer_start("Preprocessing");
-        cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
+        cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, input_height, input_width);
         util::timer_stop("Preprocessing");
 
         if (preprocessed_image.empty())
@@ -141,7 +141,8 @@ int main(int argc, char *argv[])
         int num_classes = output_tensor->dims->data[1];
 
         std::vector<float> probs(num_classes);
-        util::softmax(logits, probs, num_classes);
+        //util::softmax(logits, probs, num_classes);
+        std::memcpy(probs.data(), logits, sizeof(float) * num_classes);
         util::timer_stop("Postprocessing");
 
         std::cout << "\n[INFO] Top 5 predictions [iteration " << iter << "]:" << std::endl;

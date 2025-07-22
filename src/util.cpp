@@ -104,7 +104,6 @@ void util::print_all_timers()
     }
 }
 
-
 // Preprocess: load, resize, center crop, RGB → float32 + normalize
 cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_width)
 {

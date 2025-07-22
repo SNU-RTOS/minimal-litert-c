@@ -52,7 +52,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
 
         std::cout << "[stage0] Preprocessing image: " << images[i] << std::endl;
         util::timer_start("stage0:preprocess");
-        cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
+        cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, input_height, input_width);
         util::timer_stop("stage0:preprocess");
 
         if (preprocessed_image.empty()) {
@@ -184,7 +184,13 @@ void stage2_worker(tflite::Interpreter* interp) {
 
         std::cout << "[stage2] Top-5 prediction for image index " << ir.index << ":\n";
         auto label_map = util::load_class_labels("labels.json");
-        util::print_top_predictions(out_data, out->dims->data[1], 5, false, label_map);
+        auto top_k_indices = util::get_topK_indices(out_data, 5);
+        for (int idx : top_k_indices)
+        {
+            std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
+            std::cout << "- Class " << idx << " (" << label << "): " << out_data[idx] << std::endl;
+        }
+
         util::timer_stop("stage2:postprocess");
 
         util::timer_stop("stage2:total");
