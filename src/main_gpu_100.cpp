@@ -21,15 +21,15 @@ int main(int argc, char *argv[])
 {
     std::cout << "====== main_gpu ====" << std::endl;
 
-    if (argc != 4)
+    if (argc != 3)
     {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path> <label_json_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path>" << std::endl;
         return 1;
     }
 
     const std::string model_path = argv[1];
     const std::string image_path = argv[2];
-    const std::string label_path = argv[3];
+    const std::string label_path = "./labels.json";
 
     // Load model
     util::timer_start("Load Model");
@@ -50,7 +50,6 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-    util::PrintExecutionPlanOps(interpreter);
     util::print_model_summary(interpreter.get(), false);
 
     // Apply GPU delegate
@@ -69,7 +68,6 @@ int main(int argc, char *argv[])
     }
     util::timer_stop("Apply Delegate");
 
-    util::PrintExecutionPlanOps(interpreter);
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     // Allocate tensor
@@ -80,8 +78,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     util::timer_stop("Allocate Tensor");
-
-    util::print_model_summary(interpreter.get(), delegate_applied);
 
     // Prepare label map
     auto label_map = util::load_class_labels(label_path);
