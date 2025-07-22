@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # 모델 및 이미지 경로 설정
-MODEL0="./models/sub_model_1_resnet.tflite"
-MODEL1="./models/sub_model_2_resnet.tflite"
+MODEL0="./models/sub_model_1.tflite"
+MODEL1="./models/sub_model_2.tflite"
 IMAGE="./images/_images_161.png"
 INPUT_RATE=0
 
