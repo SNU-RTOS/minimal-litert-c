@@ -50,7 +50,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         int input_height = 224;
         int input_width = 224;
 
-        std::cout << "[stage0] Preprocessing image: " << images[i] << "\n" << std::endl;
+        std::cout << "[stage0] Preprocessing image: " << images[i] << std::endl;
         util::timer_start("stage0:preprocess");
         cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
         util::timer_stop("stage0:preprocess");
@@ -150,9 +150,21 @@ void stage2_worker(tflite::Interpreter* interp) {
         std::cout << "[stage2] Dequeued intermediate result for index: " << ir.index << std::endl;
 
         util::timer_start("stage2:copy_input");
-        float* input = interp->typed_input_tensor<float>(0);
-        std::copy(ir.data.begin(), ir.data.end(), input);
+        size_t num_inputs = interp->inputs().size();
+        size_t tensors_to_copy = std::min(ir.tensor_boundaries.size() - 1, num_inputs);
+
+        for (size_t tensor_idx = 0; tensor_idx < tensors_to_copy; tensor_idx++) {
+            TfLiteTensor* input_tensor = interp->input_tensor(tensor_idx);
+            float* input_data = interp->typed_input_tensor<float>(tensor_idx);
+            int start_idx = ir.tensor_boundaries[tensor_idx];
+            int end_idx = ir.tensor_boundaries[tensor_idx + 1];
+
+            std::copy(ir.data.begin() + start_idx,
+                    ir.data.begin() + end_idx,
+                    input_data);
+        }
         util::timer_stop("stage2:copy_input");
+
 
         std::cout << "[stage2] Invoking model1...\n";
         util::timer_start("stage2:invoke");

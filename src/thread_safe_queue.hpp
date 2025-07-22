@@ -4,35 +4,52 @@
 #include <mutex>
 #include <condition_variable>
 
+// Thread-safe queue for passing data between threads
 template <typename T>
-class ThreadSafeQueue {
+class ThreadSafeQueue
+{
+private:
+    std::queue<T> queue;
+    std::mutex mutex;
+    std::condition_variable cond_var;
+    std::atomic<bool> shutdown{false};
+
 public:
-    void push(const T& value) {
-        std::lock_guard<std::mutex> lock(m_);
-        q_.push(value);
-        cv_.notify_one();
+    void push(T item)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        queue.push(std::move(item));
+        lock.unlock();
+        cond_var.notify_one();
     }
 
-    bool pop(T& value) {
-        std::unique_lock<std::mutex> lock(m_);
-        while (q_.empty() && !shutdown_) {
-            cv_.wait(lock);
+    bool pop(T &item)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cond_var.wait(lock, [this]
+                      { return !queue.empty() || shutdown; });
+
+        if (shutdown && queue.empty())
+        {
+            return false;
         }
-        if (q_.empty()) return false;
-        value = std::move(q_.front());
-        q_.pop();
+
+        item = std::move(queue.front());
+        queue.pop();
         return true;
     }
 
-    void signal_shutdown() {
-        std::lock_guard<std::mutex> lock(m_);
-        shutdown_ = true;
-        cv_.notify_all();
+    void signal_shutdown()
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        shutdown = true;
+        lock.unlock();
+        cond_var.notify_all();
     }
 
-private:
-    std::queue<T> q_;
-    std::mutex m_;
-    std::condition_variable cv_;
-    bool shutdown_ = false;
+    size_t size()
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        return queue.size();
+    }
 };

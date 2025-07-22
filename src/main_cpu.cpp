@@ -31,8 +31,7 @@ int main(int argc, char *argv[])
 
     /* Load model */
     util::timer_start("Load Model");
-    std::unique_ptr<tflite::FlatBufferModel> model =
-        tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
+    std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!model)
     {
         std::cerr << "Failed to load model" << std::endl;
@@ -48,7 +47,7 @@ int main(int argc, char *argv[])
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-    util::print_model_summary(interpreter.get(), delegate_applied);
+    util::print_model_summary(interpreter.get(), false);
 
     /* Apply XNNPACK delegate */
     util::timer_start("Apply Delegate");
@@ -76,9 +75,6 @@ int main(int argc, char *argv[])
     }
     util::timer_stop("Allocate Tensor");
 
-
-    util::print_model_summary(interpreter.get(), delegate_applied);
-
     /* Load input image */
     util::timer_start("Load Input Image");
     cv::Mat origin_image = cv::imread(image_path);
@@ -101,12 +97,12 @@ int main(int argc, char *argv[])
     std::cout << std::endl;
 
     // Preprocess input data
-    cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
+    cv::Mat preprocessed_image = 
+            util::preprocess_image_resnet(origin_image, input_height, input_width);
 
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
-    std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
-                preprocessed_image.total() * preprocessed_image.elemSize());
+    std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(), preprocessed_image.total() * preprocessed_image.elemSize());
 
     util::timer_stop("Preprocessing");
 
@@ -139,7 +135,8 @@ int main(int argc, char *argv[])
     int num_classes = output_tensor->dims->data[1];
 
     std::vector<float> probs(num_classes);
-    util::softmax(logits, probs, num_classes);
+    //util::softmax(logits, probs, num_classes);
+    std::memcpy(probs.data(), logits, sizeof(float) * num_classes);
 
     util::timer_stop("Postprocessing");
     util::timer_stop("E2E Total(Pre+Inf+Post)");
