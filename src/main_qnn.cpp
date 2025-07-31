@@ -7,7 +7,7 @@
 
 #include <opencv2/opencv.hpp> //opencv
 
-#include "TFLiteDelegate/QnnTFLiteDelegate.h" // for QNN delegate
+#include "TFLiteDelegate/QnnTFLiteDelegate.h" //! Add cpp header to use QNN delegate
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
 #include "tflite/model_builder.h"
 #include "tflite/interpreter_builder.h"
@@ -31,6 +31,10 @@ int main(int argc, char *argv[])
     const std::string image_path = argv[2];
     const std::string label_path = argv[3];
 
+    // Determine model type from filename
+    bool is_int8_model = (model_path.find("int8") != std::string::npos);
+    std::cout << "[INFO] Model type detected: " << (is_int8_model ? "INT8" : "FP32") << std::endl;
+
     /* Load model */
     util::timer_start("Load Model");
     std::unique_ptr<tflite::FlatBufferModel> model =
@@ -44,37 +48,37 @@ int main(int argc, char *argv[])
 
     /* Build interpreter */
     util::timer_start("Build Interpreter");
-    tflite::ops::builtin::BuiltinOpResolver resolver;
+    tflite::ops::builtin::BuiltinOpResolverWithoutDefaultDelegates resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
     util::timer_stop("Build Interpreter");
 
-    /* Apply QNN Delegate */
-    util::timer_start("Apply Delegate");
+    /* Apply QNN Delegate */ //! Change this to use qnn delegate
+    util::timer_start("Apply Delegate"); 
+
     // Create QNN Delegate options structure.
     TfLiteQnnDelegateOptions options = TfLiteQnnDelegateOptionsDefault();
-    // Set the mandatory backend_type option. All other options have default values.
-    // options.backend_type = kHtpBackend; //	Qualcomm Hexagon Tensor Processor (HTP), 고성능 NPU backend
-    options.backend_type = kGpuBackend; // GPU backend 
-    // options.backend_type = kDspBackend; // Hexagon DSP backend (HTP보다 일반적 DSP 오프로드용)
+    // Set the mandatory backend_type option for QNN Delegate. All other options have default values.
+    // 1. Qualcomm Hexagon Tensor Processor (HTP) backend
+    options.backend_type = kHtpBackend; 
+    // 2. GPU backend 
+    // options.backend_type = kGpuBackend; 
+
     TfLiteDelegate *qnn_delegate = TfLiteQnnDelegateCreate(&options);
+
     bool delegate_applied = false;
-    
-    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk)
-    {
+    if (interpreter->ModifyGraphWithDelegate(qnn_delegate) == kTfLiteOk) {
         delegate_applied = true;
     }
-    else
-    {
+    else {
         std::cerr << "Failed to apply QNN delegate" << std::endl;
     }
     util::timer_stop("Apply Delegate");
 
     /* Allocate Tensor */
     util::timer_start("Allocate Tensor");
-    if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
-    {
+    if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk) {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
@@ -101,15 +105,66 @@ int main(int argc, char *argv[])
     std::cout << "\n[INFO] Input shape  : ";
     util::print_tensor_shape(input_tensor);
     std::cout << std::endl;
+    // std::cout << "[DEBUG] Input tensor type: " << input_tensor->type << std::endl;
 
-    // Preprocess input data
+    // Preprocess input data based on tensor type
     cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
-    std::cout << "[DEBUG] Input tensor type: " << input_tensor->type << std::endl;
     
-    // Copy HWC float32 cv::Mat to TFLite input tensor
-    float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
-    std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
-                preprocessed_image.total() * preprocessed_image.elemSize());
+    if (input_tensor->type == kTfLiteFloat32) {
+        // std::cout << "[INFO] Processing FP32 input path" << std::endl;
+        // Copy HWC float32 cv::Mat to TFLite input tensor
+        float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
+        std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(),
+                    preprocessed_image.total() * preprocessed_image.elemSize());
+    }
+    else if (input_tensor->type == kTfLiteUInt8) {
+        // std::cout << "[INFO] Processing INT8 input path" << std::endl;
+        // Get quantization parameters using TensorFlow Lite API
+        TfLiteQuantization quantization = input_tensor->quantization;
+        float scale = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->scale->data[0] : 1.0f;
+        int32_t zero_point = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->zero_point->data[0] : 0;
+        
+        // std::cout << "[DEBUG] Quantization - Scale: " << scale << ", Zero point: " << zero_point << std::endl;
+        
+        // Convert float32 to quantized uint8
+        uint8_t *input_tensor_buffer = interpreter->typed_input_tensor<uint8_t>(0);
+        float* float_data = preprocessed_image.ptr<float>();
+        size_t total_elements = preprocessed_image.total() * preprocessed_image.channels();
+        
+        for (size_t i = 0; i < total_elements; ++i) {
+            int32_t quantized_value = static_cast<int32_t>(std::round(float_data[i] / scale) + zero_point);
+            quantized_value = std::max(0, std::min(255, quantized_value));
+            input_tensor_buffer[i] = static_cast<uint8_t>(quantized_value);
+        }
+    }
+    else if (input_tensor->type == kTfLiteInt8) {
+        // std::cout << "[INFO] Processing INT8 (signed) input path" << std::endl;
+        // Get quantization parameters using TensorFlow Lite API
+        TfLiteQuantization quantization = input_tensor->quantization;
+        float scale = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->scale->data[0] : 1.0f;
+        int32_t zero_point = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->zero_point->data[0] : 0;
+        
+        // std::cout << "[DEBUG] Quantization - Scale: " << scale << ", Zero point: " << zero_point << std::endl;
+        
+        // Convert float32 to quantized int8
+        int8_t *input_tensor_buffer = interpreter->typed_input_tensor<int8_t>(0);
+        float* float_data = preprocessed_image.ptr<float>();
+        size_t total_elements = preprocessed_image.total() * preprocessed_image.channels();
+        
+        for (size_t i = 0; i < total_elements; ++i) {
+            int32_t quantized_value = static_cast<int32_t>(std::round(float_data[i] / scale) + zero_point);
+            quantized_value = std::max(-128, std::min(127, quantized_value));
+            input_tensor_buffer[i] = static_cast<int8_t>(quantized_value);
+        }
+    }
+    else {
+        std::cerr << "[ERROR] Unsupported input tensor type: " << input_tensor->type << std::endl;
+        return 1;
+    }
 
     util::timer_stop("Preprocessing");
 
@@ -131,12 +186,63 @@ int main(int argc, char *argv[])
     std::cout << "[INFO] Output shape : ";
     util::print_tensor_shape(output_tensor);
     std::cout << std::endl;
+    // std::cout << "[DEBUG] Output tensor type: " << output_tensor->type << std::endl;
 
-    float *logits = interpreter->typed_output_tensor<float>(0);
     int num_classes = output_tensor->dims->data[1];
-
     std::vector<float> probs(num_classes);
-    util::softmax(logits, probs, num_classes);
+
+    // Handle different output tensor types
+    if (output_tensor->type == kTfLiteFloat32) {
+        // std::cout << "[INFO] Processing FP32 output path" << std::endl;
+        float *logits = interpreter->typed_output_tensor<float>(0);
+        util::softmax(logits, probs, num_classes);
+    }
+    else if (output_tensor->type == kTfLiteUInt8) {
+        // std::cout << "[INFO] Processing UINT8 output path" << std::endl;
+        // Get quantization parameters using TensorFlow Lite API
+        TfLiteQuantization quantization = output_tensor->quantization;
+        float scale = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->scale->data[0] : 1.0f;
+        int32_t zero_point = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->zero_point->data[0] : 0;
+        
+        // std::cout << "[DEBUG] Output quantization - Scale: " << scale << ", Zero point: " << zero_point << std::endl;
+        
+        // Dequantize uint8 to float32
+        uint8_t *quantized_logits = interpreter->typed_output_tensor<uint8_t>(0);
+        std::vector<float> float_logits(num_classes);
+        
+        for (int i = 0; i < num_classes; ++i) {
+            float_logits[i] = scale * (static_cast<int32_t>(quantized_logits[i]) - zero_point);
+        }
+        
+        util::softmax(float_logits.data(), probs, num_classes);
+    }
+    else if (output_tensor->type == kTfLiteInt8) {
+        // std::cout << "[INFO] Processing INT8 output path" << std::endl;
+        // Get quantization parameters using TensorFlow Lite API
+        TfLiteQuantization quantization = output_tensor->quantization;
+        float scale = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->scale->data[0] : 1.0f;
+        int32_t zero_point = quantization.params ? 
+            ((TfLiteAffineQuantization*)quantization.params)->zero_point->data[0] : 0;
+        
+        // std::cout << "[DEBUG] Output quantization - Scale: " << scale << ", Zero point: " << zero_point << std::endl;
+        
+        // Dequantize int8 to float32
+        int8_t *quantized_logits = interpreter->typed_output_tensor<int8_t>(0);
+        std::vector<float> float_logits(num_classes);
+        
+        for (int i = 0; i < num_classes; ++i) {
+            float_logits[i] = scale * (static_cast<int32_t>(quantized_logits[i]) - zero_point);
+        }
+        
+        util::softmax(float_logits.data(), probs, num_classes);
+    }
+    else {
+        std::cerr << "[ERROR] Unsupported output tensor type: " << output_tensor->type << std::endl;
+        return 1;
+    }
 
     util::timer_stop("Postprocessing");
     util::timer_stop("E2E Total(Pre+Inf+Post)");
@@ -158,7 +264,7 @@ int main(int argc, char *argv[])
     util::print_all_timers();
     std::cout << "========================" << std::endl;
 
-    /* Deallocate delegate */
+    /* Deallocate delegate */ //! Change this to dellocate qnn delegate
     if (qnn_delegate)
     {
         TfLiteQnnDelegateDelete(qnn_delegate);

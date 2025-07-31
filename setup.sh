@@ -14,6 +14,10 @@ fi
 
 ########## Make folders ##########
 cd ${ROOT_PATH}
+if [ ! -d "bin" ]; then
+    mkdir bin    
+fi
+
 if [ ! -d "inc" ]; then
     mkdir inc    
 fi
@@ -38,7 +42,7 @@ pwd
 ## Clone LiteRT
 echo "[INFO] Installing LiteRT"
 if [ ! -d "./litert" ]; then
-    git clone https://github.com/google-ai-edge/litert.git
+    git clone https://github.com/Seunmul/LiteRT.git --depth=1 litert 
     cd ${LITERT_PATH}
     ./configure
 else

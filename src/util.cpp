@@ -54,16 +54,17 @@ std::unordered_map<int, std::string> util::load_class_labels(const std::string &
     for (const auto &key : root.getMemberNames())
     {
         int idx = std::stoi(key);
-        if (root[key].isArray() && root[key].size() >= 2)
+        // Explicitly use string key to avoid string_view overloads
+        const Json::Value& keyValue = root[static_cast<const Json::String&>(key)];
+        if (keyValue.isArray() && keyValue.size() >= 2)
         {
-            label_map[idx] = root[key][1].asString(); // label = second element
+            label_map[idx] = keyValue[1].asString(); // label = second element
         }
     }
 
     return label_map;
 }
 
-//**** For Section  2.4 ****/
 
 void util::timer_start(const std::string &label)
 {
@@ -98,8 +99,9 @@ void util::print_all_timers()
     {
         if (record.end != util::TimePoint{})
         {
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(record.end - record.start).count();
-            std::cout << "- " << label << " took " << ms << " ms" << std::endl;
+            auto us = std::chrono::duration_cast<std::chrono::microseconds>(record.end - record.start).count();
+            auto ms = us / 1000.0;
+            std::cout << "- " << label << " took " << ms << " ms (" << us << " us)" << std::endl;
         }
     }
 }
